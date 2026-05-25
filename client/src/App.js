@@ -1,14 +1,12 @@
-import './css/App.css';
-import HomePage from './HomePage';
-import { UserContextProvider } from './Context/UserContext';
-
+// src/App.js
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import PageRoutes from './PageRoutes';
 
 function App() {
   return (
     <div className="App">
-      <UserContextProvider>
-        <HomePage/>
-      </UserContextProvider>
+      <PageRoutes />
     </div>
   );
 }

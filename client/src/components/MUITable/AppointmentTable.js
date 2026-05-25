@@ -10,41 +10,44 @@ import TableRow from '@mui/material/TableRow';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Tooltip from '@mui/material/Tooltip';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import Snackbar from '@mui/material/Snackbar';
 import axios from "axios";
-import moment from "moment"
-import ConfirmDeleteDialogue from '../MUIDialogueBox/ConfirmDeleteDialogue'
-import { BootstrapDialog, BootstrapDialogTitle } from "../MUIDialogueBox/BoostrapDialogueBox"
+import moment from "moment";
+import ConfirmDeleteDialogue from '../MUIDialogueBox/ConfirmDeleteDialogue';
+import { BootstrapDialog, BootstrapDialogTitle } from "../MUIDialogueBox/BoostrapDialogueBox";
 import DialogContent from '@mui/material/DialogContent';
-import AppointmentForm from '../Forms/AppointmentForm'
-
+import AppointmentForm from '../Forms/AppointmentForm';
 
 const columns = [
     { id: 'patientName', label: 'Patient Name', minWidth: 170 },
     { id: 'doctorName', label: 'Doctor Name', minWidth: 100 },
     { id: 'appointmentDate', label: 'Appointment Date', minWidth: 170 },
     { id: 'appointmentTime', label: 'Appointment Time', minWidth: 170 },
-    { id: 'actionsID', label: 'Actions', minWidth: 100 },
+    { id: 'actionsID', label: 'Actions', minWidth: 100, align: 'center' },
 ];
 
-function createData(patientName, doctorName, appointmentDate, appointmentTime, actionsID) {
-    return { patientName, doctorName, appointmentDate, appointmentTime, actionsID };
+function createData(patientName, doctorName, appointmentDate, appointmentTime, actionsID, appointmentData) {
+    return { patientName, doctorName, appointmentDate, appointmentTime, actionsID, appointmentData };
 }
 
-// const rows = [
-//     createData('John Doe', 'Dr. Smith', '2023-03-20', '10:00 AM', ''),
-//     createData('Jane Doe', 'Dr. Johnson', '2023-03-22', '2:00 PM', ''),
-//     createData('Bob Smith', 'Dr. Lee', '2023-03-24', '11:30 AM', ''),
-//     createData('Alice Johnson', 'Dr. Davis', '2023-03-26', '4:00 PM', ''),
-//     createData('Chris Lee', 'Dr. Martin', '2023-03-28', '3:30 PM', ''),
-//     createData('Sarah Davis', 'Dr. Brown', '2023-03-30', '9:45 AM', ''),
-
-// ];
-
-export default function AppointmentTable({ bookedAppointments, deleteBookedSlots, doctorList, patientList, availableSlots, getAvailableSlots, getBookedSlots }) {
-    console.log("bookedAppointments", bookedAppointments);
+export default function AppointmentTable({ 
+    bookedAppointments, 
+    deleteBookedSlots, 
+    doctorList, 
+    patientList, 
+    availableSlots, 
+    getAvailableSlots, 
+    getBookedSlots 
+}) {
     const [page, setPage] = React.useState(0);
-    // const [rows, setRows] = React.useState([]);
     const [rowsPerPage, setRowsPerPage] = React.useState(10);
+    const [loading, setLoading] = React.useState(false);
+    const [successSnackbar, setSuccessSnackbar] = React.useState(false);
+    const [successMessage, setSuccessMessage] = React.useState('');
+    const [errorSnackbar, setErrorSnackbar] = React.useState(false);
+    const [errorMessage, setErrorMessage] = React.useState('');
 
     const [openConfirmDeleteDialogue, setOpenConfirmDeleteDialogue] = React.useState(false);
     const [openEditFormDialogue, setOpenEditFormDialogue] = React.useState(false);
@@ -54,9 +57,7 @@ export default function AppointmentTable({ bookedAppointments, deleteBookedSlots
     const [appointmentDate, setAppointmentDate] = React.useState("");
     const [appointmentTime, setAppointmentTime] = React.useState("");
     const [appointmentId, setAppointmentId] = React.useState("");
-
-    const [appIDToDelete,setAppIDToDelete] = React.useState("");
-
+    const [appIDToDelete, setAppIDToDelete] = React.useState("");
 
     const handleDeleteDialogueOpen = () => {
         setOpenConfirmDeleteDialogue(true);
@@ -64,40 +65,91 @@ export default function AppointmentTable({ bookedAppointments, deleteBookedSlots
 
     const handleDeleteDialogueClose = () => {
         setOpenConfirmDeleteDialogue(false);
+        setAppIDToDelete("");
     };
 
     const handleEditFormOpen = () => {
-        setOpenEditFormDialogue(true)
-    }
+        setOpenEditFormDialogue(true);
+    };
 
     const handleEditFormClose = () => {
-        setOpenEditFormDialogue(false)
-    }
+        setOpenEditFormDialogue(false);
+        // Reset form data
+        setDoctorId("");
+        setPatientId("");
+        setAppointmentDate("");
+        setAppointmentTime("");
+        setAppointmentId("");
+    };
 
-    const updateAppointmentFormSubmitted = async (event) => {
+    const updateAppointmentFormSubmitted = async (event, formData) => {
         event.preventDefault();
-        const form = document.forms.updateAppointment;
-        let appId = form.id.value;
-        let reqObj = {
-            "appDate": form.appDate.value,
-            "appTime": form.appTime.value,
-            "doctorId": form.doctor.value,
-            "patientId": form.patient.value
+        
+        // Use formData if provided, otherwise get from form
+        let reqObj;
+        if (formData) {
+            reqObj = formData;
+        } else {
+            const form = document.forms.updateAppointment;
+            reqObj = {
+                appDate: form.appDate.value,
+                appTime: form.appTime.value,
+                doctorId: form.doctor.value,
+                patientId: form.patient.value
+            };
         }
-        const response = await axios.put(`http://localhost:3001/appointments/${appId}`,
-            reqObj,
-            {
-                headers: {
-                    authorization: `Bearer ${localStorage.getItem("token")}`
+        
+        setLoading(true);
+        
+        try {
+            const response = await axios.put(
+                `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/appointments/${appointmentId}`,
+                reqObj,
+                {
+                    headers: {
+                        authorization: `Bearer ${localStorage.getItem("token")}`
+                    }
                 }
+            );
+            
+            if (response.data.message === "success") {
+                setSuccessMessage("Appointment updated successfully!");
+                setSuccessSnackbar(true);
+                
+                // Refresh appointments
+                await getAvailableSlots();
+                await getBookedSlots();
+                
+                handleEditFormClose();
+            } else {
+                setErrorMessage(response.data.message || "Failed to update appointment");
+                setErrorSnackbar(true);
             }
-        );
+        } catch (error) {
+            console.error("Error updating appointment:", error);
+            setErrorMessage(error.response?.data?.message || "Network error. Please try again.");
+            setErrorSnackbar(true);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        console.log(response.data);
-        getAvailableSlots();
-        getBookedSlots();
-        handleEditFormClose()
-    }
+    const handleDeleteAppointment = async () => {
+        setLoading(true);
+        
+        try {
+            await deleteBookedSlots(appIDToDelete);
+            setSuccessMessage("Appointment deleted successfully!");
+            setSuccessSnackbar(true);
+            handleDeleteDialogueClose();
+        } catch (error) {
+            console.error("Error deleting appointment:", error);
+            setErrorMessage(error.response?.data?.message || "Failed to delete appointment");
+            setErrorSnackbar(true);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleChangePage = (event, newPage) => {
         setPage(newPage);
@@ -107,173 +159,249 @@ export default function AppointmentTable({ bookedAppointments, deleteBookedSlots
         setRowsPerPage(+event.target.value);
         setPage(0);
     };
+
     const formatDateForDateInput = (dateOfJoining) => {
-        // console.log("dateOfJoining",dateOfJoining);
-        dateOfJoining = moment(new Date(dateOfJoining.slice(0, -1))).format('YYYY-MM-DD');
-        // console.log("dateOfJoining",dateOfJoining);
-        return dateOfJoining;
-    }
+        if (!dateOfJoining) return '';
+        return moment(new Date(dateOfJoining)).format('YYYY-MM-DD');
+    };
 
     const setFormProperties = async (appID) => {
-        console.log("appID",appID)
-        const response = await axios.get(`http://localhost:3001/appointments/${appID}`, {
-            headers: {
-                authorization: `Bearer ${localStorage.getItem("token")}`
-            }
-        });
-        let app = response.data.appointment
-        console.log(app);
-        setDoctorId(app.doctorId)
-        setPatientId(app.patientId)
-        setAppointmentDate(formatDateForDateInput(app.appointmentDate));
-        setAppointmentTime(app.appointmentTime);
-        setAppointmentId(app._id)
-        // console.log(doctorId)
-        // console.log(patientId)
-        // console.log(appointmentDate)
-        // console.log(appointmentTime)
+        setLoading(true);
+        
+        try {
+            const response = await axios.get(
+                `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/appointments/${appID}`,
+                {
+                    headers: {
+                        authorization: `Bearer ${localStorage.getItem("token")}`
+                    }
+                }
+            );
+            
+            const app = response.data.appointment;
+            setDoctorId(app.doctorId?._id || app.doctorId);
+            setPatientId(app.patientId?._id || app.patientId);
+            setAppointmentDate(formatDateForDateInput(app.appointmentDate));
+            setAppointmentTime(app.appointmentTime);
+            setAppointmentId(app._id);
+            
+            handleEditFormOpen();
+        } catch (error) {
+            console.error("Error fetching appointment details:", error);
+            setErrorMessage("Failed to load appointment details");
+            setErrorSnackbar(true);
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    // Create rows from booked appointments
+    const rows = React.useMemo(() => {
+        if (!bookedAppointments || bookedAppointments.length === 0) return [];
+        
+        return bookedAppointments.map((apt) => {
+            const patientName = apt.patientId?.userId 
+                ? `${apt.patientId.userId.firstName || ''} ${apt.patientId.userId.lastName || ''}`.trim()
+                : 'Unknown Patient';
+            
+            const doctorName = apt.doctorId?.userId 
+                ? `Dr. ${apt.doctorId.userId.firstName || ''} ${apt.doctorId.userId.lastName || ''}`.trim()
+                : 'Unknown Doctor';
+            
+            return createData(
+                patientName,
+                doctorName,
+                formatDateForDateInput(apt.appointmentDate),
+                apt.appointmentTime,
+                apt._id,
+                apt
+            );
+        });
+    }, [bookedAppointments]);
+
+    // Show empty state
+    if (!bookedAppointments || bookedAppointments.length === 0) {
+        return (
+            <Paper sx={{ width: '95%', overflow: 'hidden', marginTop: 5, boxShadow: "0 12px 24px rgba(0, 0, 0, 0.2)", p: 4 }}>
+                <Alert severity="info" sx={{ justifyContent: 'center' }}>
+                    No appointments found. Book an appointment to get started.
+                </Alert>
+            </Paper>
+        );
     }
 
-
-
-    let rows = bookedAppointments.map((apt) => {
-        // console.log("inside map",await getPatientByID(apt.patientId))
-        return createData(
-            apt.patientId.userId.firstName + " " + apt.patientId.userId.lastName,
-            apt.doctorId.userId.firstName + " " + apt.doctorId.userId.lastName,
-            formatDateForDateInput(apt.appointmentDate),
-            apt.appointmentTime,
-            apt._id
-        )
-    })
-
-
-
-    React.useEffect(() => {
-
-    }, [])
-
-
-
-    // getDoctorByID(bookedAppointments[0].doctorId);
-    // getPatientByID(bookedAppointments[0].patientId);
-
     return (
-        <Paper sx={{ width: '95%', overflow: 'hidden', marginTop: 5, boxShadow: "0 12px 24px rgba(0, 0, 0, 0.2) " }}>
-            <TableContainer sx={{ maxHeight: 440 }}>
-                <Table stickyHeader aria-label="sticky table">
-                    <TableHead>
-                        <TableRow>
-                            {columns.map((column) => (
-                                <TableCell
-                                    key={column.id}
-                                    align={column.align}
-                                    style={{ minWidth: column.minWidth, fontWeight: "bold" }}
-                                >
-                                    {column.label}
-                                </TableCell>
-                            ))}
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {rows
-                            .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                            .map((row) => {
-                                return (
-                                    <TableRow hover role="checkbox" tabIndex={-1} key={row.code}>
-                                        {columns.map((column) => {
-                                            const value = row[column.id];
-                                            if (column.id === 'actionsID') {
-                                                return (
-                                                    <TableCell key={column.id} align={column.align}>
-                                                        <Tooltip title="Edit" placement="top" arrow>
-                                                            <EditIcon
-                                                                className="mx-2"
-                                                                style={{ color: '#ff6600', fontSize: 30 }}
-                                                                onClick={() => {
-                                                                    handleEditFormOpen();
-                                                                    setFormProperties(value);
-                                                                }}
-                                                            />
-                                                        </Tooltip>
-                                                        <Tooltip title="Delete" placement="top" arrow>
-                                                            <DeleteIcon
-                                                                className="mx-2"
-                                                                style={{ color: 'red', fontSize: 30 }}
-                                                                onClick={()=>{
-                                                                    setAppIDToDelete(value)
-                                                                    handleDeleteDialogueOpen();
-                                                                }}
-                                                            />
-                                                        </Tooltip>
-                                                        
-                                                    </TableCell>
-                                                );
-                                            } else {
-                                                return (
-                                                    <TableCell key={column.id} align={column.align}>
-                                                        {column.format && typeof value === 'number'
-                                                            ? column.format(value)
-                                                            : value}
-                                                    </TableCell>
-                                                );
-                                            }
-                                        })}
-                                    </TableRow>
-                                );
-                            })}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-            <TablePagination
-                rowsPerPageOptions={[10, 25, 100]}
-                component="div"
-                count={rows.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                sx={{
-                    "& p": {
-                        "marginTop": 'auto',
-                        "marginBottom": 'auto'
-                    }
-                }}
-            />
+        <>
+            <Paper sx={{ width: '95%', overflow: 'hidden', marginTop: 5, boxShadow: "0 12px 24px rgba(0, 0, 0, 0.2)" }}>
+                <TableContainer sx={{ maxHeight: 440 }}>
+                    <Table stickyHeader aria-label="sticky table">
+                        <TableHead>
+                            <TableRow>
+                                {columns.map((column) => (
+                                    <TableCell
+                                        key={column.id}
+                                        align={column.align || 'left'}
+                                        style={{ 
+                                            minWidth: column.minWidth, 
+                                            fontWeight: "bold",
+                                            backgroundColor: '#f5f5f5'
+                                        }}
+                                    >
+                                        {column.label}
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {rows
+                                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                .map((row, index) => {
+                                    return (
+                                        <TableRow 
+                                            hover 
+                                            role="checkbox" 
+                                            tabIndex={-1} 
+                                            key={row.actionsID || index}
+                                            sx={{ '&:hover': { backgroundColor: '#f9f9f9' } }}
+                                        >
+                                            {columns.map((column) => {
+                                                const value = row[column.id];
+                                                if (column.id === 'actionsID') {
+                                                    return (
+                                                        <TableCell key={column.id} align={column.align || 'center'}>
+                                                            <Tooltip title="Edit Appointment" placement="top" arrow>
+                                                                <EditIcon
+                                                                    className="mx-2"
+                                                                    style={{ 
+                                                                        color: '#ff6600', 
+                                                                        fontSize: 28,
+                                                                        cursor: 'pointer',
+                                                                        transition: 'transform 0.2s'
+                                                                    }}
+                                                                    onClick={() => setFormProperties(value)}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                                                />
+                                                            </Tooltip>
+                                                            <Tooltip title="Delete Appointment" placement="top" arrow>
+                                                                <DeleteIcon
+                                                                    className="mx-2"
+                                                                    style={{ 
+                                                                        color: '#dc3545', 
+                                                                        fontSize: 28,
+                                                                        cursor: 'pointer',
+                                                                        transition: 'transform 0.2s'
+                                                                    }}
+                                                                    onClick={() => {
+                                                                        setAppIDToDelete(value);
+                                                                        handleDeleteDialogueOpen();
+                                                                    }}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                                                />
+                                                            </Tooltip>
+                                                        </TableCell>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <TableCell key={column.id} align={column.align || 'left'}>
+                                                            {value || '-'}
+                                                        </TableCell>
+                                                    );
+                                                }
+                                            })}
+                                        </TableRow>
+                                    );
+                                })}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                <TablePagination
+                    rowsPerPageOptions={[10, 25, 50, 100]}
+                    component="div"
+                    count={rows.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    sx={{
+                        "& p": {
+                            "marginTop": 'auto',
+                            "marginBottom": 'auto'
+                        }
+                    }}
+                />
+            </Paper>
+
+            {/* Delete Confirmation Dialogue */}
             <ConfirmDeleteDialogue
-                title="Confirm Delete"
-                message="Are you sure you want to delete this record? This action cannot be undone."
+                title="Delete Appointment"
+                message="Are you sure you want to delete this appointment?"
+                itemName={`Appointment on ${appointmentDate}`}
                 open={openConfirmDeleteDialogue}
                 handleClose={handleDeleteDialogueClose}
-                handleDelete={() => {
-                    // console.log("tyooooo",value)
-                    deleteBookedSlots(appIDToDelete);
-                    handleDeleteDialogueClose();
-                }}
+                handleDelete={handleDeleteAppointment}
+                loading={loading}
+                deleteButtonText="Delete Appointment"
             />
+
+            {/* Edit Appointment Dialogue */}
             <BootstrapDialog
                 onClose={handleEditFormClose}
                 aria-labelledby="customized-dialog-title"
                 open={openEditFormDialogue}
+                maxWidth="md"
+                fullWidth
             >
                 <BootstrapDialogTitle id="customized-dialog-title" onClose={handleEditFormClose}>
                     Update Appointment
                 </BootstrapDialogTitle>
                 <DialogContent dividers>
-                    <AppointmentForm
-                        formName="updateAppointment"
-                        formOnSubmit={updateAppointmentFormSubmitted}
-                        appDate={appointmentDate}
-                        appTime={appointmentTime}
-                        doctorSelected={doctorId}
-                        patientSelected={patientId}
-                        doctorList={doctorList}
-                        patientList={patientList}
-                        availableSlots={availableSlots}
-                        appointmentId={appointmentId} />
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: '20px' }}>
+                            <CircularProgress />
+                            <p>Loading appointment details...</p>
+                        </div>
+                    ) : (
+                        <AppointmentForm
+                            formName="updateAppointment"
+                            formOnSubmit={updateAppointmentFormSubmitted}
+                            appDate={appointmentDate}
+                            appTime={appointmentTime}
+                            doctorSelected={doctorId}
+                            patientSelected={patientId}
+                            doctorList={doctorList}
+                            patientList={patientList}
+                            availableSlots={availableSlots}
+                            appointmentId={appointmentId}
+                        />
+                    )}
                 </DialogContent>
             </BootstrapDialog>
-        </Paper>
+
+            {/* Success Snackbar */}
+            <Snackbar
+                open={successSnackbar}
+                autoHideDuration={3000}
+                onClose={() => setSuccessSnackbar(false)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert severity="success" onClose={() => setSuccessSnackbar(false)} elevation={6}>
+                    {successMessage}
+                </Alert>
+            </Snackbar>
+
+            {/* Error Snackbar */}
+            <Snackbar
+                open={errorSnackbar}
+                autoHideDuration={6000}
+                onClose={() => setErrorSnackbar(false)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert severity="error" onClose={() => setErrorSnackbar(false)} elevation={6}>
+                    {errorMessage}
+                </Alert>
+            </Snackbar>
+        </>
     );
 }

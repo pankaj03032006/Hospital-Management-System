@@ -2,31 +2,28 @@ const User = require("../models/user.js");
 const Patient = require("../models/patient.js");
 const Doctor = require("../models/doctor.js");
 
-
 const getUsers = async (req, res) => {
-
     try {
-
-        var name = req.query.name;
-        var role = req.query.role;
+        const name = req.query.name;
+        const role = req.query.role;
 
         let conditions = [];
 
         if (name) {
-            conditions.push({ firstName: name });
-            conditions.push({ lastName: name });
+            // Use regex for partial name matching
+            const nameRegex = new RegExp(name, 'i');
+            conditions.push({ firstName: nameRegex });
+            conditions.push({ lastName: nameRegex });
         }
 
         if (role) {
             conditions.push({ userType: role });
         }
-        //console.log(role);
+        
         let users = [];
         if (conditions.length === 0) {
             users = await User.find({});
         } else {
-            console.log(conditions);
-
             users = await User.find({
                 $or: conditions
             });
@@ -34,161 +31,267 @@ const getUsers = async (req, res) => {
 
         res.json(users);
     } catch (error) {
+        console.error("Error in getUsers:", error);
         res.status(500).json({ message: error.message });
     }
 }
 
 const getUserById = async (req, res) => {
     try {
-        const user = await User.findById(req.params.id);
+        const { id } = req.params;
+        
+        if (!id) {
+            return res.status(400).json({ message: "User ID is required" });
+        }
+        
+        const user = await User.findById(id);
+        
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        
         res.json(user);
     } catch (error) {
-        res.status(404).json({ message: error.message });
+        console.error("Error in getUserById:", error);
+        res.status(500).json({ message: error.message });
     }
 }
 
-
-const isUserValid = (newUser) => {
+const isUserValid = (newUser, isUpdate = false) => {
     let errorList = [];
-    if (!newUser.firstName) {
-        errorList[errorList.length] = "Please enter first name";
+    
+    if (!newUser.firstName || newUser.firstName.trim() === "") {
+        errorList.push("Please enter first name");
     }
-    if (!newUser.lastName) {
-        errorList[errorList.length] = "Please enter last name";
+    if (!newUser.lastName || newUser.lastName.trim() === "") {
+        errorList.push("Please enter last name");
     }
-    if (!newUser.email) {
-        errorList[errorList.length] = "Please enter email";
+    if (!newUser.email || newUser.email.trim() === "") {
+        errorList.push("Please enter email");
     }
-    if (!newUser.password) {
-        errorList[errorList.length] = "Please enter password";
+    
+    // Only validate password for new users (not required for update)
+    if (!isUpdate) {
+        if (!newUser.password) {
+            errorList.push("Please enter password");
+        }
+        if (!newUser.confirmPassword) {
+            errorList.push("Please re-enter password in Confirm Password field");
+        }
+        if (newUser.password !== newUser.confirmPassword) {
+            errorList.push("Password and Confirm Password did not match");
+        }
+        if (newUser.password && newUser.password.length <= 6) {
+            errorList.push("Password length must be greater than 6 characters");
+        }
+    } else {
+        // For update, validate password only if provided
+        if (newUser.password && newUser.password !== newUser.confirmPassword) {
+            errorList.push("Password and Confirm Password did not match");
+        }
+        if (newUser.password && newUser.password.length <= 6) {
+            errorList.push("Password length must be greater than 6 characters");
+        }
     }
-    if (!newUser.confirmPassword) {
-        errorList[errorList.length] = "Please re-enter password in Confirm Password field";
-    }
+    
     if (!newUser.userType) {
-        errorList[errorList.length] = "Please enter User Type";
-    }
-    if (!(newUser.password == newUser.confirmPassword)) {
-        errorList[errorList.length] = "Password and Confirm Password did not match";
+        errorList.push("Please enter User Type");
     }
 
     if (errorList.length > 0) {
-        result = {
+        return {
             status: false,
             errors: errorList
-        }
-        return result;
+        };
     }
-    else {
-        return { status: true };
-    }
-
+    
+    return { status: true };
 }
 
 const saveUser = async (req, res) => {
     let newUser = req.body;
-    let userValidStatus = isUserValid(newUser);
+    
+    if (!newUser) {
+        return res.status(400).json({
+            message: 'error',
+            errors: ["User data is required"]
+        });
+    }
+    
+    let userValidStatus = isUserValid(newUser, false);
     if (!userValidStatus.status) {
-        res.status(400).json({
+        return res.status(400).json({
             message: 'error',
             errors: userValidStatus.errors
         });
     }
-    else {
-        const newUser = new User(req.body);
-
-        User.create(
-            {
-                email: newUser.email,
-                username: newUser.username,
+    
+    try {
+        // Check if user already exists
+        const existingUser = await User.findOne({ email: newUser.email });
+        if (existingUser) {
+            return res.status(400).json({
+                message: 'error',
+                errors: ["User with this email already exists"]
+            });
+        }
+        
+        // Create user
+        const userDetails = await User.create({
+            email: newUser.email,
+            username: newUser.username || newUser.email,
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
+            password: newUser.password,
+            userType: newUser.userType,
+            activated: true
+        });
+        
+        let profileDetails = null;
+        
+        // Create role-specific profile
+        if (newUser.userType === "Doctor") {
+            profileDetails = await Doctor.create({
+                userId: userDetails._id,
                 firstName: newUser.firstName,
                 lastName: newUser.lastName,
-                password: newUser.password,
-                userType: newUser.userType,
-                activated: true
-            },
-            (error, userDetails) => {
-                if (error) {
-                    res.status(400).json({ message: "error", errors: [error.message] });
-                } else {
-
-                    if (newUser.userType === "Doctor") {
-                        Doctor.create(
-                            {
-                                userId: userDetails._id,
-                                firstName: newUser.firstName,
-                                lastName: newUser.lastName,
-                                email: newUser.email
-                            },
-                            (error2, doctorDetails) => {
-                                if (error2) {
-                                    User.deleteOne({ _id: userDetails });
-                                    res.status(400).json({ message: "error", errors: [error2.message] });
-                                } else {
-                                    res.status(201).json({ message: "success" });
-                                }
-                            }
-                        );
-                    }
-                    if (newUser.userType === "Patient") {
-                        Patient.create(
-                            {
-                                userId: userDetails._id,
-                                firstName: newUser.firstName,
-                                lastName: newUser.lastName,
-                                email: newUser.email
-                            },
-                            (error2, patientDetails) => {
-                                if (error2) {
-                                    User.deleteOne({ _id: userDetails });
-                                    res.status(400).json({ message: "error", errors: [error2.message] });
-                                } else {
-                                    res.status(201).json({ message: "success" });
-                                }
-                            }
-                        );
-                    }
-                }
-            }
-        );
-
+                email: newUser.email
+            });
+        } else if (newUser.userType === "Patient") {
+            profileDetails = await Patient.create({
+                userId: userDetails._id,
+                firstName: newUser.firstName,
+                lastName: newUser.lastName,
+                email: newUser.email
+            });
+        }
+        
+        res.status(201).json({ message: "success" });
+        
+    } catch (error) {
+        console.error("Error in saveUser:", error);
+        
+        // Rollback: Delete user if profile creation failed
+        if (error && userDetails) {
+            await User.deleteOne({ _id: userDetails._id });
+        }
+        
+        res.status(500).json({ 
+            message: 'error', 
+            errors: [error.message || "Failed to create user"] 
+        });
     }
 }
 
 const updateUser = async (req, res) => {
     let newUser = req.body;
-    let userValidStatus = isUserValid(newUser);
+    const { id } = req.params;
+    
+    if (!id) {
+        return res.status(400).json({
+            message: 'error',
+            errors: ["User ID is required"]
+        });
+    }
+    
+    let userValidStatus = isUserValid(newUser, true);
     if (!userValidStatus.status) {
-        res.status(400).json({
+        return res.status(400).json({
             message: 'error',
             errors: userValidStatus.errors
         });
     }
-    else {
-        try {
-            const updateduser = await User.updateOne({ _id: req.params.id }, { $set: req.body });
-            res.status(201).json({ message: 'success' });
-        } catch (error) {
-            res.status(400).json({ message: 'error', errors: [error.message] });
+    
+    try {
+        // Check if user exists
+        const existingUser = await User.findById(id);
+        if (!existingUser) {
+            return res.status(404).json({
+                message: 'error',
+                errors: ["User not found"]
+            });
         }
+        
+        // Check for duplicate email (excluding current user)
+        if (newUser.email && newUser.email !== existingUser.email) {
+            const duplicateUser = await User.findOne({ 
+                email: newUser.email,
+                _id: { $ne: id }
+            });
+            if (duplicateUser) {
+                return res.status(400).json({
+                    message: 'error',
+                    errors: ["User with this email already exists"]
+                });
+            }
+        }
+        
+        // Prepare update data
+        const updateData = {};
+        if (newUser.firstName) updateData.firstName = newUser.firstName;
+        if (newUser.lastName) updateData.lastName = newUser.lastName;
+        if (newUser.email) updateData.email = newUser.email;
+        if (newUser.username) updateData.username = newUser.username;
+        if (newUser.userType) updateData.userType = newUser.userType;
+        if (newUser.password) updateData.password = newUser.password;
+        
+        const updatedUser = await User.updateOne(
+            { _id: id }, 
+            { $set: updateData }
+        );
+        
+        if (updatedUser.matchedCount === 0) {
+            return res.status(404).json({
+                message: 'error',
+                errors: ["User not found"]
+            });
+        }
+        
+        res.status(200).json({ message: 'success' });
+    } catch (error) {
+        console.error("Error in updateUser:", error);
+        res.status(500).json({ 
+            message: 'error', 
+            errors: [error.message] 
+        });
     }
 }
 
 const deleteUser = async (req, res) => {
     try {
-        const user = await User.findById(req.params.id);
-        if (user.userType == 'Doctor') {
-            const deleteddoctor = await Doctor.deleteOne({ userId: req.params.id });
+        const { id } = req.params;
+        
+        if (!id) {
+            return res.status(400).json({ message: "User ID is required" });
         }
-
-        if (user.userType == 'Patient') {
-            const deletedpaient = await Patient.deleteOne({ userId: req.params.id });
+        
+        const user = await User.findById(id);
+        
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
         }
-
-        const deleteduser = await User.deleteOne({ _id: req.params.id });
-        res.status(200).json(deleteduser);
+        
+        // Delete role-specific profile first
+        if (user.userType === 'Doctor') {
+            await Doctor.deleteOne({ userId: id });
+        } else if (user.userType === 'Patient') {
+            await Patient.deleteOne({ userId: id });
+        }
+        
+        // Delete user
+        const deletedUser = await User.deleteOne({ _id: id });
+        
+        if (deletedUser.deletedCount === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        
+        res.status(200).json({ 
+            message: 'success',
+            deleted: deletedUser
+        });
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error("Error in deleteUser:", error);
+        res.status(500).json({ message: error.message });
     }
 }
 
@@ -198,4 +301,4 @@ module.exports = {
     saveUser,
     updateUser,
     deleteUser
-}
+};

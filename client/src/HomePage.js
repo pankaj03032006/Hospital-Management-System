@@ -1,19 +1,32 @@
-import { BrowserRouter as Router, Link } from 'react-router-dom'
-import Navbar from './components/Navbar'
-import PageRoutes from './PageRoutes'
-import { UserContext } from './Context/UserContext'
-import React, { useContext } from 'react';
+// App.js
+import './css/App.css';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import HomePage from './HomePage';
+import Login from './components/Login/Login';
+import SignupPage from './components/SignUp/SignupPage';
+import { UserContextProvider } from './Context/UserContext';
 
-
-
-export default function HomePage() {
-    const { currentUser, signInUser } = useContext(UserContext);
-
-    return (
-        <Router>
-            <div>
-                <PageRoutes />
-            </div>
-        </Router>
-    )
+function App() {
+  return (
+    <UserContextProvider>
+      <div className="App">
+        <Routes>
+          {/* HomePage acts as layout for protected routes */}
+          <Route path="/" element={<HomePage />}>
+            {/* Nested routes will render inside HomePage with Navbar */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+          </Route>
+          
+          {/* Public Routes - No Navbar */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignupPage />} />
+          
+          {/* Fallback Route - 404 */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </div>
+    </UserContextProvider>
+  );
 }
+
+export default App;

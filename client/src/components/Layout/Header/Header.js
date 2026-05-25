@@ -5,12 +5,25 @@ import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import Typography from '@mui/material/Typography';
 import { styled, useTheme } from '@mui/material/styles';
-import { useNavigate } from "react-router-dom";
-import React, { useContext } from 'react';
-import { UserContext } from '../../../Context/UserContext'
+import { useNavigate, useLocation } from "react-router-dom";
+import React, { useContext, useState } from 'react';
+import { UserContext } from '../../../Context/UserContext';
 import AccountCircle from '@mui/icons-material/AccountCircle';
-import MenuItem from '@mui/material/MenuItem';
 import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Divider from '@mui/material/Divider';
+import Avatar from '@mui/material/Avatar';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import PersonIcon from '@mui/icons-material/Person';
+import SettingsIcon from '@mui/icons-material/Settings';
+import LogoutIcon from '@mui/icons-material/Logout';
+import HelpIcon from '@mui/icons-material/Help';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import Badge from '@mui/material/Badge';
+import Tooltip from '@mui/material/Tooltip';
 
 const drawerWidth = 240;
 
@@ -34,11 +47,20 @@ const AppBar = styled(MuiAppBar, {
 
 const Header = ({ open, handleDrawerOpen, headerTitle }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isLoggedIn, currentUser, signOutUser } = useContext(UserContext);
-  const [anchorEl, setAnchorEl] = React.useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+  const [notifications, setNotifications] = useState([
+    { id: 1, text: "New appointment booking", time: "5 min ago", read: false },
+    { id: 2, text: "Patient feedback received", time: "1 hour ago", read: false },
+    { id: 3, text: "System update completed", time: "2 hours ago", read: true },
+  ]);
+
   const redirectToHome = () => {
-    navigate("/");
-  }
+    navigate("/dashboard");
+  };
+
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -47,15 +69,68 @@ const Header = ({ open, handleDrawerOpen, headerTitle }) => {
     setAnchorEl(null);
   };
 
-  const handleSignOut = () => {
-    signOutUser();
-    handleClose(null);
+  const handleNotificationMenu = (event) => {
+    setNotificationAnchorEl(event.currentTarget);
   };
 
+  const handleNotificationClose = () => {
+    setNotificationAnchorEl(null);
+  };
+
+  const handleSignOut = () => {
+    signOutUser();
+    handleClose();
+    navigate("/login");
+  };
+
+  const handleProfile = () => {
+    handleClose();
+    navigate("/profile");
+  };
+
+  const handleSettings = () => {
+    handleClose();
+    navigate("/settings");
+  };
+
+  const getDashboardPath = () => {
+    if (!currentUser) return "/dashboard";
+    switch (currentUser.userType) {
+      case 'Admin':
+        return "/admin/dashboard";
+      case 'Doctor':
+        return "/doctor/dashboard";
+      case 'Patient':
+        return "/patient/dashboard";
+      default:
+        return "/dashboard";
+    }
+  };
+
+  const getInitials = () => {
+    if (!currentUser) return "GU";
+    return `${currentUser.firstName?.charAt(0) || ''}${currentUser.lastName?.charAt(0) || ''}`;
+  };
+
+  const getRoleColor = () => {
+    if (!currentUser) return "#6c757d";
+    switch (currentUser.userType) {
+      case 'Admin':
+        return "#dc3545";
+      case 'Doctor':
+        return "#28a745";
+      case 'Patient':
+        return "#17a2b8";
+      default:
+        return "#6c757d";
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <AppBar position="fixed" open={open} style={{ backgroundColor: '#fff', color: "#31b372", boxShadow: "None" }} >
-      <Toolbar>
+    <AppBar position="fixed" open={open} className={styles.appBar}>
+      <Toolbar className={styles.toolbar}>
         <IconButton
           color="inherit"
           aria-label="open drawer"
@@ -65,38 +140,47 @@ const Header = ({ open, handleDrawerOpen, headerTitle }) => {
             marginRight: 5,
             ...(open && { display: 'none' }),
           }}
-
+          className={styles.menuButton}
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="h4" noWrap component="div" onClick={redirectToHome} sx={{ flexGrow: 1, fontWeight: 'bolder' }} >
-          {/* {headerTitle} */}
-          Green Hills Hospital
+        
+        <Typography 
+          variant="h4" 
+          noWrap 
+          component="div" 
+          onClick={redirectToHome} 
+          className={styles.logo}
+        >
+          <span className={styles.logoGreen}>Synod</span>
+          <span className={styles.logoGrey}> Hospital</span>
         </Typography>
+
         {isLoggedIn && (
-          <div className={styles.accountIcon}>
-            <IconButton
-              size="large"
-              aria-label="account of current user"
-              aria-controls="menu-appbar"
-              aria-haspopup="true"
-              onClick={handleMenu}
-              color="inherit"
-              
-            >
-              <AccountCircle style={{ fontSize: 42, marginRight: 8 }} />
-              <div style={{ display: 'flex', flexDirection: "column", alignItems: "start" }} >
-                <span style={{ fontSize: 19, color: 'grey', marginTop: 3 }} > {currentUser.firstName} {currentUser.lastName}</span>
-                <span style={{ fontSize: 12, color: 'grey' }} > {currentUser.userType}</span>
-              </div>
+          <div className={styles.rightSection}>
+            {/* Notification Bell */}
+            <Tooltip title="Notifications">
+              <IconButton
+                size="large"
+                aria-label="show notifications"
+                aria-controls="notification-menu"
+                aria-haspopup="true"
+                onClick={handleNotificationMenu}
+                color="inherit"
+                className={styles.notificationBtn}
+              >
+                <Badge badgeContent={unreadCount} color="error">
+                  <NotificationsIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
 
-
-            </IconButton>
+            {/* Notifications Menu */}
             <Menu
-              id="menu-appbar"
-              anchorEl={anchorEl}
+              id="notification-menu"
+              anchorEl={notificationAnchorEl}
               anchorOrigin={{
-                vertical: 'top',
+                vertical: 'bottom',
                 horizontal: 'right',
               }}
               keepMounted
@@ -104,17 +188,159 @@ const Header = ({ open, handleDrawerOpen, headerTitle }) => {
                 vertical: 'top',
                 horizontal: 'right',
               }}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
+              open={Boolean(notificationAnchorEl)}
+              onClose={handleNotificationClose}
+              PaperProps={{
+                style: {
+                  width: 320,
+                  maxHeight: 400,
+                },
+              }}
             >
-              <MenuItem onClick={handleClose}>Profile</MenuItem>
-              <MenuItem onClick={handleSignOut}>Sign Out</MenuItem>
+              <MenuItem sx={{ fontWeight: 'bold', justifyContent: 'space-between' }}>
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <span style={{ fontSize: 12, color: '#666' }}>
+                    {unreadCount} unread
+                  </span>
+                )}
+              </MenuItem>
+              <Divider />
+              {notifications.length === 0 ? (
+                <MenuItem onClick={handleNotificationClose}>
+                  <ListItemText primary="No notifications" />
+                </MenuItem>
+              ) : (
+                notifications.map((notification) => (
+                  <MenuItem key={notification.id} onClick={handleNotificationClose}>
+                    <ListItemText 
+                      primary={notification.text} 
+                      secondary={notification.time}
+                      primaryTypographyProps={{
+                        style: { fontWeight: notification.read ? 'normal' : 'bold' }
+                      }}
+                    />
+                  </MenuItem>
+                ))
+              )}
+              <Divider />
+              <MenuItem onClick={handleNotificationClose}>
+                <ListItemText primary="View all notifications" sx={{ textAlign: 'center', color: '#31b372' }} />
+              </MenuItem>
             </Menu>
+
+            {/* User Account Menu */}
+            <div className={styles.accountIcon}>
+              <IconButton
+                size="large"
+                aria-label="account of current user"
+                aria-controls="menu-appbar"
+                aria-haspopup="true"
+                onClick={handleMenu}
+                color="inherit"
+                className={styles.userButton}
+              >
+                <Avatar 
+                  sx={{ 
+                    width: 42, 
+                    height: 42, 
+                    bgcolor: getRoleColor(),
+                    marginRight: 1.5
+                  }}
+                >
+                  {getInitials()}
+                </Avatar>
+                <div className={styles.userInfo}>
+                  <span className={styles.userName}>
+                    {currentUser?.firstName} {currentUser?.lastName}
+                  </span>
+                  <span className={styles.userRole} style={{ color: getRoleColor() }}>
+                    {currentUser?.userType}
+                  </span>
+                </div>
+              </IconButton>
+              
+              <Menu
+                id="menu-appbar"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                  vertical: 'bottom',
+                  horizontal: 'right',
+                }}
+                keepMounted
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                open={Boolean(anchorEl)}
+                onClose={handleClose}
+                PaperProps={{
+                  style: {
+                    width: 250,
+                  },
+                }}
+              >
+                <MenuItem onClick={handleProfile}>
+                  <ListItemIcon>
+                    <PersonIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>My Profile</ListItemText>
+                </MenuItem>
+                
+                <MenuItem onClick={() => {
+                  handleClose();
+                  navigate(getDashboardPath());
+                }}>
+                  <ListItemIcon>
+                    <DashboardIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Dashboard</ListItemText>
+                </MenuItem>
+                
+                <MenuItem onClick={() => {
+                  handleClose();
+                  navigate("/appointments");
+                }}>
+                  <ListItemIcon>
+                    <CalendarTodayIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Appointments</ListItemText>
+                </MenuItem>
+                
+                <Divider />
+                
+                <MenuItem onClick={handleSettings}>
+                  <ListItemIcon>
+                    <SettingsIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Settings</ListItemText>
+                </MenuItem>
+                
+                <MenuItem onClick={() => {
+                  handleClose();
+                  navigate("/help");
+                }}>
+                  <ListItemIcon>
+                    <HelpIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Help & Support</ListItemText>
+                </MenuItem>
+                
+                <Divider />
+                
+                <MenuItem onClick={handleSignOut} sx={{ color: '#dc3545' }}>
+                  <ListItemIcon>
+                    <LogoutIcon fontSize="small" sx={{ color: '#dc3545' }} />
+                  </ListItemIcon>
+                  <ListItemText>Sign Out</ListItemText>
+                </MenuItem>
+              </Menu>
+            </div>
           </div>
         )}
       </Toolbar>
     </AppBar>
-  )
-}
+  );
+};
 
 export default Header;

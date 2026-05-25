@@ -1,4 +1,3 @@
-// import * as React from 'react';
 import { styled, useTheme } from '@mui/material/styles';
 import MuiDrawer from '@mui/material/Drawer';
 import List from '@mui/material/List';
@@ -7,30 +6,33 @@ import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import InboxIcon from '@mui/icons-material/MoveToInbox';
-import MailIcon from '@mui/icons-material/Mail';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import AccessibleForwardIcon from '@mui/icons-material/AccessibleForward';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
-import Person2OutlinedIcon from '@mui/icons-material/Person2Outlined';
-import Collapse from '@mui/material/Collapse';
+import AccountBoxIcon from '@mui/icons-material/AccountBox';
 import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
-import TableChartIcon from '@mui/icons-material/TableChart';
-import { NavLink, Link, useLocation } from 'react-router-dom'
-import React, { useContext } from 'react';
-import { UserContext } from '../../../Context/UserContext'
-import SickIcon from '@mui/icons-material/Sick';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import React, { useContext, useState } from 'react';
+import { UserContext } from '../../../Context/UserContext';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import VaccinesIcon from '@mui/icons-material/Vaccines';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import GroupIcon from '@mui/icons-material/Group';
-import AccountBoxIcon from '@mui/icons-material/AccountBox';
-import styles from './Sidebar.module.css'
+import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import PersonIcon from '@mui/icons-material/Person';
+import PeopleIcon from '@mui/icons-material/People';
+import DescriptionIcon from '@mui/icons-material/Description';
+import SettingsIcon from '@mui/icons-material/Settings';
+import HelpIcon from '@mui/icons-material/Help';
+import Tooltip from '@mui/material/Tooltip';
+import styles from './Sidebar.module.css';
 
 const drawerWidth = 240;
 
@@ -50,7 +52,6 @@ const closedMixin = (theme) => ({
     }),
     overflowX: 'hidden',
     width: `calc(${theme.spacing(7)} + 1px)`,
-
     [theme.breakpoints.up('xs')]: {
         width: 0,
     },
@@ -62,9 +63,8 @@ const closedMixin = (theme) => ({
 const DrawerHeader = styled('div')(({ theme }) => ({
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     padding: theme.spacing(0, 1),
-    // necessary for content to be below app bar
     ...theme.mixins.toolbar,
 }));
 
@@ -85,338 +85,326 @@ const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' 
     }),
 );
 
-
 export default function Sidebar({ open, handleDrawerClose, handleDrawerOpen }) {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { currentUser, signOutUser } = useContext(UserContext);
+    const [hoveredItem, setHoveredItem] = useState(null);
 
-    let selectedItem = useLocation().pathname.split('/')[1]
-    // console.log(selectedItem);
+    const getRolePrefix = () => {
+        if (currentUser?.userType === 'Admin') return '/admin/dashboard';
+        if (currentUser?.userType === 'Doctor') return '/doctor/dashboard';
+        if (currentUser?.userType === 'Patient') return '/patient/dashboard';
+        return '';
+    };
 
-    const { isLoggedIn, currentUser, signOutUser } = useContext(UserContext);
+    const prefix = getRolePrefix();
 
-    const [openUserCollapse, setOpenUseCollapse] = React.useState(false);
+    const handleLogout = () => {
+        if (window.confirm('Are you sure you want to logout?')) {
+            signOutUser();
+            navigate('/login');
+        }
+    };
 
-    const theme = useTheme();
+    // Menu items configuration based on user role
+    const getMenuItems = () => {
+        const commonItems = [
+            {
+                key: 'dashboard',
+                title: 'Dashboard',
+                icon: <DashboardIcon />,
+                path: `${prefix}`,
+                roles: ['Admin', 'Doctor', 'Patient']
+            },
+            {
+                key: 'appointments',
+                title: 'Appointments',
+                icon: <CalendarTodayOutlinedIcon />,
+                path: `${prefix}/appointments`,
+                roles: ['Admin', 'Doctor', 'Patient']
+            },
+            {
+                key: 'prescriptions',
+                title: 'Prescriptions',
+                icon: <ReceiptIcon />,
+                path: `${prefix}/prescriptions`,
+                roles: ['Admin', 'Doctor', 'Patient']
+            }
+        ];
 
-    function handleUserClicked() {
-        setOpenUseCollapse(!openUserCollapse);
-    }
+        const adminOnlyItems = [
+            {
+                key: 'users',
+                title: 'User Management',
+                icon: <GroupIcon />,
+                path: `${prefix}/users`,
+                roles: ['Admin']
+            },
+            {
+                key: 'patients',
+                title: 'Patients',
+                icon: <AccessibleForwardIcon />,
+                path: `${prefix}/patients`,
+                roles: ['Admin']
+            },
+            {
+                key: 'doctors',
+                title: 'Doctors',
+                icon: <LocalHospitalIcon />,
+                path: `${prefix}/doctors`,
+                roles: ['Admin']
+            },
+            {
+                key: 'medicines',
+                title: 'Medicine Inventory',
+                icon: <VaccinesIcon />,
+                path: `${prefix}/medicines`,
+                roles: ['Admin']
+            }
+        ];
 
-    function handleMouseLeavesDrawer() {
-        setOpenUseCollapse(false);
-        handleDrawerClose()
-    }
+        // FIXED: Changed key from 'patients' to 'mypatients' and path to '/mypatients'
+        const doctorOnlyItems = [
+            {
+                key: 'mypatients',  // Changed from 'patients' to 'mypatients'
+                title: 'My Patients',
+                icon: <PeopleIcon />,
+                path: `${prefix}/mypatients`,  // Changed from '/patients' to '/mypatients'
+                roles: ['Doctor']
+            },
+            {
+                key: 'medicines',
+                title: 'Medicines',
+                icon: <VaccinesIcon />,
+                path: `${prefix}/medicines`,
+                roles: ['Doctor']
+            }
+        ];
 
-    React.useEffect(() => {
+        let items = [...commonItems];
+        
+        if (currentUser?.userType === 'Admin') {
+            items = [...items, ...adminOnlyItems];
+        } else if (currentUser?.userType === 'Doctor') {
+            items = [...items, ...doctorOnlyItems];
+        }
+        
+        // Filter items based on user role
+        items = items.filter(item => item.roles.includes(currentUser?.userType));
+        
+        return items;
+    };
 
-    }, [selectedItem])
+    const bottomItems = [
+        {
+            key: 'profile',
+            title: 'My Profile',
+            icon: <AccountBoxIcon />,
+            path: `${prefix}/profile`,
+            roles: ['Admin', 'Doctor', 'Patient']
+        },
+        {
+            key: 'settings',
+            title: 'Settings',
+            icon: <SettingsIcon />,
+            path: `${prefix}/settings`,
+            roles: ['Admin', 'Doctor', 'Patient']
+        },
+        {
+            key: 'help',
+            title: 'Help & Support',
+            icon: <HelpIcon />,
+            path: `${prefix}/help`,
+            roles: ['Admin', 'Doctor', 'Patient']
+        }
+    ];
 
+    const menuItems = getMenuItems();
+
+    const renderMenuItem = (item) => {
+        const isSelected = location.pathname === item.path;
+        
+        return (
+            <ListItem key={item.key} disablePadding sx={{ display: 'block' }}>
+                <Tooltip title={!open ? item.title : ''} placement="right">
+                    <ListItemButton
+                        component={NavLink}
+                        to={item.path}
+                        selected={isSelected}
+                        onMouseEnter={() => setHoveredItem(item.key)}
+                        onMouseLeave={() => setHoveredItem(null)}
+                        sx={{
+                            minHeight: 48,
+                            justifyContent: open ? 'initial' : 'center',
+                            px: 2.5,
+                            py: 1,
+                            mx: 1,
+                            my: 0.5,
+                            borderRadius: 2,
+                            transition: 'all 0.3s ease',
+                            '&.Mui-selected': {
+                                backgroundColor: '#1b4f32',
+                                '&:hover': {
+                                    backgroundColor: '#143d26',
+                                },
+                                '& .MuiListItemIcon-root': {
+                                    color: '#fff',
+                                },
+                                '& .MuiListItemText-primary': {
+                                    color: '#fff',
+                                    fontWeight: 600,
+                                },
+                            },
+                            '&:hover': {
+                                backgroundColor: 'rgba(27, 79, 50, 0.8)',
+                                transform: 'translateX(4px)',
+                            },
+                        }}
+                    >
+                        <ListItemIcon
+                            sx={{
+                                minWidth: 0,
+                                mr: open ? 3 : 'auto',
+                                justifyContent: 'center',
+                                color: '#fff',
+                                transition: 'transform 0.3s ease',
+                                transform: hoveredItem === item.key ? 'scale(1.1)' : 'scale(1)',
+                            }}
+                        >
+                            {item.icon}
+                        </ListItemIcon>
+                        <ListItemText 
+                            primary={item.title} 
+                            sx={{ 
+                                opacity: open ? 1 : 0,
+                                '& .MuiListItemText-primary': {
+                                    fontWeight: isSelected ? 600 : 400,
+                                    fontSize: '0.9rem',
+                                }
+                            }} 
+                        />
+                    </ListItemButton>
+                </Tooltip>
+            </ListItem>
+        );
+    };
 
     return (
-        <Drawer className={styles.sidebar} variant="permanent" open={open} onMouseEnter={handleDrawerOpen} onMouseLeave={handleMouseLeavesDrawer} PaperProps={{ sx: { backgroundColor: '#31b372', color: 'white' } }}>
+        <Drawer 
+            className={styles.sidebar} 
+            variant="permanent" 
+            open={open} 
+            onMouseEnter={handleDrawerOpen} 
+            onMouseLeave={handleDrawerClose}
+            PaperProps={{ 
+                sx: { 
+                    backgroundColor: '#31b372', 
+                    color: 'white',
+                    border: 'none',
+                    boxShadow: '2px 0 8px rgba(0, 0, 0, 0.1)',
+                } 
+            }}
+        >
             <DrawerHeader>
-                <IconButton onClick={handleDrawerClose}>
-                    {/* {theme.direction === 'rtl' ? <ChevronRightIcon /> : <ChevronLeftIcon />} */}
-                    <MenuIcon style={{ color: '#fff' }} />
+                <Typography 
+                    variant="h6" 
+                    sx={{ 
+                        color: 'white', 
+                        fontWeight: 'bold',
+                        opacity: open ? 1 : 0,
+                        transition: 'opacity 0.3s ease',
+                        ml: 2,
+                        fontSize: '1.1rem'
+                    }}
+                >
+                    {open && 'Synod'}
+                </Typography>
+                <IconButton onClick={handleDrawerClose} sx={{ color: 'white' }}>
+                    {open ? <ChevronLeftIcon /> : <MenuIcon />}
                 </IconButton>
             </DrawerHeader>
-            <Divider />
+            
+            <Divider sx={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', my: 1 }} />
+            
+            {/* Main Navigation */}
+            <List sx={{ flexGrow: 1 }}>
+                {menuItems.map(renderMenuItem)}
+            </List>
+
+            <Divider sx={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', my: 1 }} />
+
+            {/* Bottom Navigation Items */}
             <List>
-                <ListItem key={"Dashboard"} disablePadding sx={{ display: 'block' }}>
-                    {/* <NavLink to="/" style={{ textDecoration: 'none', color: 'white' }} > */}
-                    <ListItemButton
-                        selected={!selectedItem ? true : false}
-                        component={NavLink}
-                        to="/"
-                        style={{ textDecoration: 'none', color: 'white' }}
-                        sx={{
-                            minHeight: 48,
-                            justifyContent: open ? 'initial' : 'center',
-                            px: 2.5,
-                            "&.Mui-selected": {
-                                backgroundColor: "#1b4f32",
-                            },
-                            "&.Mui-selected:hover": {
-                                backgroundColor: "#1b4f32",
-                            },
-                        }}
-                    >
-                        <ListItemIcon
-                            sx={{
-                                minWidth: 0,
-                                mr: open ? 3 : 'auto',
-                                justifyContent: 'center',
-                                color: '#fff'
-                            }}
-                        >
-                            <DashboardOutlinedIcon />
-                        </ListItemIcon>
-                        <ListItemText primary={"Dashboard"} sx={{ opacity: open ? 1 : 0 }} />
-                    </ListItemButton>
-                    {/* </NavLink> */}
-                </ListItem>
+                {bottomItems.map(renderMenuItem)}
+            </List>
 
-                <ListItem key={"Appointments"} disablePadding sx={{ display: 'block' }}>
-                    <ListItemButton
-                        component={NavLink}
-                        to="/appointments"
-                        style={{ textDecoration: 'none', color: 'white' }}
-                        selected={selectedItem == "appointments" ? true : false}
-                        sx={{
-                            minHeight: 48,
-                            justifyContent: open ? 'initial' : 'center',
-                            px: 2.5,
-                            "&.Mui-selected": {
-                                backgroundColor: "#1b4f32",
-                            },
-                            "&.Mui-selected:hover": {
-                                backgroundColor: "#1b4f32",
-                            },
-                        }}
-                    >
-                        <ListItemIcon
-                            sx={{
-                                minWidth: 0,
-                                mr: open ? 3 : 'auto',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <CalendarTodayOutlinedIcon style={{ color: '#fff' }} />
-                        </ListItemIcon>
-                        <ListItemText primary={"Appointments"} sx={{ opacity: open ? 1 : 0 }} />
-                    </ListItemButton>
-                </ListItem>
+            <Divider sx={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', my: 1 }} />
 
-                <ListItem key={"Prescriptions"} disablePadding sx={{ display: 'block' }}>
-                    <ListItemButton
-                        component={NavLink}
-                        to="/prescriptions"
-                        style={{ textDecoration: 'none', color: 'white' }}
-                        selected={selectedItem == "prescriptions" ? true : false}
-                        sx={{
-                            minHeight: 48,
-                            justifyContent: open ? 'initial' : 'center',
-                            px: 2.5,
-                            "&.Mui-selected": {
-                                backgroundColor: "#1b4f32",
-                            },
-                            "&.Mui-selected:hover": {
-                                backgroundColor: "#1b4f32",
-                            },
-                        }}
-                    >
-                        <ListItemIcon
+            {/* Logout Button */}
+            <List>
+                <ListItem disablePadding sx={{ display: 'block' }}>
+                    <Tooltip title={!open ? 'Logout' : ''} placement="right">
+                        <ListItemButton
+                            onClick={handleLogout}
                             sx={{
-                                minWidth: 0,
-                                mr: open ? 3 : 'auto',
-                                justifyContent: 'center',
+                                minHeight: 48,
+                                justifyContent: open ? 'initial' : 'center',
+                                px: 2.5,
+                                py: 1,
+                                mx: 1,
+                                my: 0.5,
+                                borderRadius: 2,
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                    backgroundColor: '#d32f2f',
+                                    transform: 'translateX(4px)',
+                                },
                             }}
                         >
-                            <ReceiptIcon style={{ color: '#fff' }} />
-                        </ListItemIcon>
-                        <ListItemText primary={"Prescriptions"} sx={{ opacity: open ? 1 : 0 }} />
-                    </ListItemButton>
-                </ListItem>
-
-
-                {(currentUser.userType == "Admin" || currentUser.userType == "Doctor") && <ListItem key={"Medicines"} disablePadding sx={{ display: 'block' }}>
-                    <ListItemButton
-                        component={NavLink}
-                        to="/medicines"
-                        style={{ textDecoration: 'none', color: 'white' }}
-                        selected={selectedItem == "medicines" ? true : false}
-                        sx={{
-                            minHeight: 48,
-                            justifyContent: open ? 'initial' : 'center',
-                            px: 2.5,
-                            "&.Mui-selected": {
-                                backgroundColor: "#1b4f32",
-                            },
-                            "&.Mui-selected:hover": {
-                                backgroundColor: "#1b4f32",
-                            },
-                        }}
-                    >
-                        <ListItemIcon
-                            sx={{
-                                minWidth: 0,
-                                mr: open ? 3 : 'auto',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <VaccinesIcon style={{ color: '#fff' }} />
-                        </ListItemIcon>
-                        <ListItemText primary={"Medicines"} sx={{ opacity: open ? 1 : 0 }} />
-                    </ListItemButton>
-                </ListItem>
-                }
-                {currentUser.userType == "Admin" && <Divider />}
-                {currentUser.userType == "Admin" && <ListItem key={"Users"} disablePadding sx={{ display: 'block' }}>
-                    <ListItemButton
-                        component={NavLink}
-                        to="/users"
-                        style={{ textDecoration: 'none', color: 'white' }}
-                        selected={selectedItem == "users" ? true : false}
-                        sx={{
-                            minHeight: 48,
-                            justifyContent: open ? 'initial' : 'center',
-                            px: 2.5,
-                            "&.Mui-selected": {
-                                backgroundColor: "#1b4f32",
-                            },
-                            "&.Mui-selected:hover": {
-                                backgroundColor: "#1b4f32",
-                            },
-                        }}
-                        onClick={handleUserClicked}
-                    >
-                        <ListItemIcon
-                            sx={{
-                                minWidth: 0,
-                                mr: open ? 3 : 'auto',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <GroupIcon style={{ color: '#fff' }} />
-                        </ListItemIcon>
-                        <ListItemText primary={"Users"} sx={{ opacity: open ? 1 : 0 }} />
-                    </ListItemButton>
-                </ListItem>}
-                {/* <Collapse in={openUserCollapse} timeout="5000" unmountOnExit >
-                    <List component="div" disablePadding sx={{ pl: 3 }}>
-                        <ListItemButton>
-                            <ListItemIcon>
-                                <TableChartIcon style={{ color: '#fff' }} />
+                            <ListItemIcon
+                                sx={{
+                                    minWidth: 0,
+                                    mr: open ? 3 : 'auto',
+                                    justifyContent: 'center',
+                                    color: '#fff',
+                                }}
+                            >
+                                <LogoutOutlinedIcon />
                             </ListItemIcon>
-                            <ListItemText primary={"View Users"} sx={{ opacity: open ? 1 : 0 }} />
+                            <ListItemText 
+                                primary="Logout" 
+                                sx={{ 
+                                    opacity: open ? 1 : 0,
+                                    '& .MuiListItemText-primary': {
+                                        fontWeight: 500,
+                                    }
+                                }} 
+                            />
                         </ListItemButton>
-                        <ListItemButton>
-                            <ListItemIcon>
-                                <PersonAddAltIcon style={{ color: '#fff' }} />
-                            </ListItemIcon>
-                            <ListItemText primary={"Add Users"} sx={{ opacity: open ? 1 : 0 }} />
-                        </ListItemButton>
-                    </List>
-                </Collapse> */}
-                {currentUser.userType == "Admin" && <ListItem key={"Patients"} disablePadding sx={{ display: 'block' }}>
-                    <ListItemButton
-                        component={NavLink}
-                        to="/patients"
-                        style={{ textDecoration: 'none', color: 'white' }}
-                        selected={selectedItem == "patients" ? true : false}
-                        sx={{
-                            minHeight: 48,
-                            justifyContent: open ? 'initial' : 'center',
-                            px: 2.5,
-                            "&.Mui-selected": {
-                                backgroundColor: "#1b4f32",
-                            },
-                            "&.Mui-selected:hover": {
-                                backgroundColor: "#1b4f32",
-                            },
-                        }}
-                    >
-                        <ListItemIcon
-                            sx={{
-                                minWidth: 0,
-                                mr: open ? 3 : 'auto',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <AccessibleForwardIcon style={{ color: '#fff' }} />
-                        </ListItemIcon>
-                        <ListItemText primary={"Patients"} sx={{ opacity: open ? 1 : 0 }} />
-                    </ListItemButton>
-                </ListItem>
-                }
-                {currentUser.userType == "Admin" && <ListItem key={"Doctors"} disablePadding sx={{ display: 'block' }}>
-                    <ListItemButton
-                        component={NavLink}
-                        to="/doctors"
-                        style={{ textDecoration: 'none', color: 'white' }}
-                        selected={selectedItem == "doctors" ? true : false}
-                        sx={{
-                            minHeight: 48,
-                            justifyContent: open ? 'initial' : 'center',
-                            px: 2.5,
-                            "&.Mui-selected": {
-                                backgroundColor: "#1b4f32",
-                            },
-                            "&.Mui-selected:hover": {
-                                backgroundColor: "#1b4f32",
-                            },
-                        }}
-                    >
-                        <ListItemIcon
-                            sx={{
-                                minWidth: 0,
-                                mr: open ? 3 : 'auto',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <LocalHospitalIcon style={{ color: '#fff' }} />
-                        </ListItemIcon>
-                        <ListItemText primary={"Doctors"} sx={{ opacity: open ? 1 : 0 }} />
-                    </ListItemButton>
-                </ListItem>
-                }
-            </List>
-            <Divider />
-            <List>
-                <ListItem key={"Profile"} disablePadding sx={{ display: 'block' }}>
-                    <ListItemButton
-                        component={NavLink}
-                        to="/profile"
-                        style={{ textDecoration: 'none', color: 'white' }}
-                        selected={selectedItem == "profile" ? true : false}
-                        sx={{
-                            minHeight: 48,
-                            justifyContent: open ? 'initial' : 'center',
-                            px: 2.5,
-                            "&.Mui-selected": {
-                                backgroundColor: "#1b4f32",
-                            },
-                            "&.Mui-selected:hover": {
-                                backgroundColor: "#1b4f32",
-                            },
-                        }}
-                    >
-                        <ListItemIcon
-                            sx={{
-                                minWidth: 0,
-                                mr: open ? 3 : 'auto',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <AccountBoxIcon style={{ color: '#fff' }} />
-                        </ListItemIcon>
-                        <ListItemText primary={"Profile"} sx={{ opacity: open ? 1 : 0 }} />
-                    </ListItemButton>
+                    </Tooltip>
                 </ListItem>
             </List>
 
-            <Divider />
-            <List>
-                <ListItem key={"Logout"} disablePadding sx={{ display: 'block' }} onClick={signOutUser}>
-                    <ListItemButton
-                        sx={{
-                            minHeight: 48,
-                            justifyContent: open ? 'initial' : 'center',
-                            px: 2.5,
-                        }}
-                    >
-                        <ListItemIcon
-                            sx={{
-                                minWidth: 0,
-                                mr: open ? 3 : 'auto',
-                                justifyContent: 'center',
-                            }}
-                        >
-                            <LogoutOutlinedIcon style={{ color: '#fff' }} />
-                        </ListItemIcon>
-                        <ListItemText primary={"Logout"} sx={{ opacity: open ? 1 : 0 }} />
-                    </ListItemButton>
-                </ListItem>
-            </List>
+            {/* Footer with user info when sidebar is open */}
+            {open && currentUser && (
+                <>
+                    <Divider sx={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', my: 1 }} />
+                    <div className={styles.userInfoFooter}>
+                        <div className={styles.userAvatar}>
+                            {currentUser.firstName?.charAt(0)}{currentUser.lastName?.charAt(0)}
+                        </div>
+                        <div className={styles.userDetails}>
+                            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600 }}>
+                                {currentUser.firstName} {currentUser.lastName}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                                {currentUser.userType}
+                            </Typography>
+                        </div>
+                    </div>
+                </>
+            )}
         </Drawer>
     );
 }

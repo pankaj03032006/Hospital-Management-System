@@ -1,16 +1,15 @@
 const Patient = require("../models/patient.js");
 const Prescription = require("../models/prescription.js");
 const User = require("../models/user.js");
+const Doctor = require("../models/doctor.js");
 
 const getPatients = async (req, res) => {
-
     try {
-        var searchpatient = new RegExp(req.query.name, 'i');
-
+        const searchpatient = req.query.name ? new RegExp(req.query.name, 'i') : null;
         let patients = [];
+        
         if (!searchpatient) {
             patients = await Patient.find({}).populate('userId');
-
         } else {
             patients = await Patient.find().populate({
                 path: 'userId',
@@ -22,172 +21,297 @@ const getPatients = async (req, res) => {
                         { email: { $regex: searchpatient } }
                     ]
                 }
-            }).then((patients) => patients.filter((patient => patient.userId != null)));
+            }).then((patients) => patients.filter(patient => patient.userId != null));
         }
 
         res.json(patients);
     } catch (error) {
+        console.error("Error in getPatients:", error);
         res.status(500).json({ message: error.message });
     }
 }
 
 const getPatientById = async (req, res) => {
     try {
-        const patient = await Patient.findById(req.params.id).populate('userId');
+        const { id } = req.params;
+        
+        if (!id) {
+            return res.status(400).json({ message: "Patient ID is required" });
+        }
+        
+        const patient = await Patient.findById(id).populate('userId');
+        
+        if (!patient) {
+            return res.status(404).json({ message: "Patient not found" });
+        }
+        
         res.json(patient);
     } catch (error) {
-        res.status(404).json({ message: error.message });
+        console.error("Error in getPatientById:", error);
+        res.status(500).json({ message: error.message });
     }
 }
 
-
-const isPatientValid = (newPatient) => {
+const isPatientValid = (newPatient, isUpdate = false) => {
     let errorList = [];
-    if (!newPatient.firstName) {
-        errorList[errorList.length] = "Please enter first name";
+    
+    if (!newPatient.firstName || newPatient.firstName.trim() === "") {
+        errorList.push("Please enter first name");
     }
-    if (!newPatient.lastName) {
-        errorList[errorList.length] = "Please enter last name";
+    if (!newPatient.lastName || newPatient.lastName.trim() === "") {
+        errorList.push("Please enter last name");
     }
-    if (!newPatient.email) {
-        errorList[errorList.length] = "Please enter email";
+    if (!newPatient.email || newPatient.email.trim() === "") {
+        errorList.push("Please enter email");
     }
-    if (!newPatient.password) {
-        errorList[errorList.length] = "Please enter password";
+    
+    // Only validate password for new patients (not required for update)
+    if (!isUpdate) {
+        if (!newPatient.password) {
+            errorList.push("Please enter password");
+        }
+        if (!newPatient.confirmPassword) {
+            errorList.push("Please re-enter password in Confirm Password field");
+        }
+        if (newPatient.password !== newPatient.confirmPassword) {
+            errorList.push("Password and Confirm Password did not match");
+        }
+        if (newPatient.password && newPatient.password.length <= 6) {
+            errorList.push("Password length must be greater than 6 characters");
+        }
+    } else {
+        // For update, validate password only if provided
+        if (newPatient.password && newPatient.password !== newPatient.confirmPassword) {
+            errorList.push("Password and Confirm Password did not match");
+        }
+        if (newPatient.password && newPatient.password.length <= 6) {
+            errorList.push("Password length must be greater than 6 characters");
+        }
     }
-    if (!newPatient.confirmPassword) {
-        errorList[errorList.length] = "Please re-enter password in Confirm Password field";
-    }
-    if (!(newPatient.password == newPatient.confirmPassword)) {
-        errorList[errorList.length] = "Password and Confirm Password did not match";
-    }
-    if (!newPatient.phone) {
-        errorList[errorList.length] = "Please enter phone";
+    
+    if (!newPatient.phone || newPatient.phone.trim() === "") {
+        errorList.push("Please enter phone");
     }
 
     if (errorList.length > 0) {
-        result = {
+        return {
             status: false,
             errors: errorList
-        }
-        return result;
+        };
     }
-    else {
-        return { status: true };
-    }
-
+    
+    return { status: true };
 }
 
 const savePatient = async (req, res) => {
     let newPatient = req.body;
-    let PatientValidStatus = isPatientValid(newPatient);
-    if (!PatientValidStatus.status) {
-        res.status(400).json({
+    
+    if (!newPatient) {
+        return res.status(400).json({
             message: 'error',
-            errors: PatientValidStatus.errors
+            errors: ["Patient data is required"]
         });
     }
-    else {
-        //const patient = new Patient(req.body);
-        User.create(
-            {
-                email: newPatient.email,
-                username: newPatient.username,
-                firstName: newPatient.firstName,
-                lastName: newPatient.lastName,
-                password: newPatient.password,
-                userType: 'Patient',
-                activated: 1,
-            },
-            (error, userDetails) => {
-                if (error) {
-                    res.status(400).json({ message: "error", errors: [error.message] });
-                } else {
-                    newPatient.userId = userDetails._id,
-                        Patient.create(newPatient,
-                            (error2, patientDetails) => {
-                                if (error2) {
-                                    User.deleteOne({ _id: userDetails });
-                                    res.status(400).json({ message: 'error', errors: [error2.message] });
-                                } else {
-                                    res.status(201).json({ message: 'success' });
-                                }
-                            }
-                        );
-                }
-            }
-        );
+    
+    let patientValidStatus = isPatientValid(newPatient, false);
+    if (!patientValidStatus.status) {
+        return res.status(400).json({
+            message: 'error',
+            errors: patientValidStatus.errors
+        });
+    }
+    
+    try {
+        // Create user first
+        const userDetails = await User.create({
+            email: newPatient.email,
+            username: newPatient.username,
+            firstName: newPatient.firstName,
+            lastName: newPatient.lastName,
+            password: newPatient.password,
+            userType: 'Patient',
+            activated: true,
+        });
+        
+        // Create patient with user reference
+        newPatient.userId = userDetails._id;
+        
+        const patientDetails = await Patient.create(newPatient);
+        
+        res.status(201).json({ message: 'success' });
+    } catch (error) {
+        console.error("Error in savePatient:", error);
+        
+        // Rollback user creation if patient creation fails
+        if (error && userDetails) {
+            await User.deleteOne({ _id: userDetails._id });
+        }
+        
+        res.status(400).json({ 
+            message: 'error', 
+            errors: [error.message] 
+        });
     }
 }
 
 const updatePatient = async (req, res) => {
     let newPatient = req.body;
-    let PatientValidStatus = isPatientValid(newPatient);
-    if (!PatientValidStatus.status) {
-        res.status(400).json({
+    const { id } = req.params;
+    
+    if (!id) {
+        return res.status(400).json({
             message: 'error',
-            errors: PatientValidStatus.errors
+            errors: ["Patient ID is required"]
         });
     }
-    else {
-        try {
-            const updatedPatient = await Patient.updateOne({ _id: req.params.id }, { $set: { "phone": req.body.phone, "address": req.body.address, "gender": req.body.gender, "dob": req.body.dob } });
-
-            const updateduser = await User.updateOne({ _id: req.body.userId }, { $set: { "firstName": req.body.firstName, "lastName": req.body.lastName, "email": req.body.email, "username": req.body.username, "password": req.body.password } });
-
-            res.status(201).json({ message: 'success' });
-        } catch (error) {
-            res.status(400).json({ message: 'error', errors: [error.message] });
+    
+    let patientValidStatus = isPatientValid(newPatient, true);
+    if (!patientValidStatus.status) {
+        return res.status(400).json({
+            message: 'error',
+            errors: patientValidStatus.errors
+        });
+    }
+    
+    try {
+        // Check if patient exists
+        const existingPatient = await Patient.findById(id);
+        if (!existingPatient) {
+            return res.status(404).json({
+                message: 'error',
+                errors: ["Patient not found"]
+            });
         }
+        
+        // Update patient
+        const updatedPatient = await Patient.updateOne(
+            { _id: id }, 
+            { 
+                $set: { 
+                    "phone": req.body.phone, 
+                    "address": req.body.address, 
+                    "gender": req.body.gender, 
+                    "dob": req.body.dob 
+                } 
+            }
+        );
+        
+        // Update user
+        const updateUserData = {
+            "firstName": req.body.firstName,
+            "lastName": req.body.lastName,
+            "email": req.body.email,
+            "username": req.body.username
+        };
+        
+        // Only update password if provided
+        if (req.body.password) {
+            updateUserData.password = req.body.password;
+        }
+        
+        const updatedUser = await User.updateOne(
+            { _id: req.body.userId }, 
+            { $set: updateUserData }
+        );
+        
+        res.status(200).json({ message: 'success' });
+    } catch (error) {
+        console.error("Error in updatePatient:", error);
+        res.status(400).json({ 
+            message: 'error', 
+            errors: [error.message] 
+        });
     }
 }
 
 const deletePatient = async (req, res) => {
     try {
-        const patient = await Doctor.findById(req.params.id).populate('userId');
-
-        const deletedPatient = await Patient.deleteOne({ _id: req.params.id });
-
-        const deleteduser = await User.deleteOne({ _id: patient.userId._id });
-
-        res.status(200).json(deletedPatient);
+        const { id } = req.params;
+        
+        if (!id) {
+            return res.status(400).json({ message: "Patient ID is required" });
+        }
+        
+        const patient = await Patient.findById(id).populate('userId');
+        
+        if (!patient) {
+            return res.status(404).json({ message: "Patient not found" });
+        }
+        
+        // Delete patient
+        const deletedPatient = await Patient.deleteOne({ _id: id });
+        
+        // Delete associated user
+        if (patient.userId && patient.userId._id) {
+            await User.deleteOne({ _id: patient.userId._id });
+        }
+        
+        res.status(200).json({ 
+            message: 'success',
+            deleted: deletedPatient
+        });
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error("Error in deletePatient:", error);
+        res.status(500).json({ message: error.message });
     }
 }
 
 const getPatientHistory = async (req, res) => {
     try {
-        let prescriptions = await Prescription.find().populate({
-            path: 'prescribedMed.medicineId',
-        }).populate({
-            path: 'appointmentId',
-            match: {patientId:req.params.id},
-            populate: [
-                {
-                    path: 'patientId',
-                    populate: {
-                        path: 'userId'
+        const { id } = req.params;
+        
+        if (!id) {
+            return res.status(400).json({ 
+                message: "error",
+                errors: ["Patient ID is required"] 
+            });
+        }
+        
+        // Check if patient exists
+        const patient = await Patient.findById(id);
+        if (!patient) {
+            return res.status(404).json({ 
+                message: "error",
+                errors: ["Patient not found"] 
+            });
+        }
+        
+        let prescriptions = await Prescription.find()
+            .populate({
+                path: 'prescribedMed.medicineId',
+            })
+            .populate({
+                path: 'appointmentId',
+                match: { patientId: id },
+                populate: [
+                    {
+                        path: 'patientId',
+                        populate: {
+                            path: 'userId'
+                        }
+                    },
+                    {
+                        path: 'doctorId',
+                        populate: {
+                            path: 'userId'
+                        }
                     }
-                },
-                {
-                    path: 'doctorId',
-                    populate: {
-                        path: 'userId'
-                    }
-                }
-            ]
-        }).then((prescriptions) => prescriptions.filter((pre => pre.appointmentId != null)));
-
+                ]
+            })
+            .then((prescriptions) => prescriptions.filter(pre => pre.appointmentId != null));
+        
         res.status(200).json({
-            "message":"success",
-            "prescriptions":prescriptions
+            "message": "success",
+            "prescriptions": prescriptions
         });
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error("Error in getPatientHistory:", error);
+        res.status(500).json({ 
+            message: "error", 
+            errors: [error.message] 
+        });
     }
 }
-
 
 module.exports = {
     getPatients,
@@ -196,4 +320,4 @@ module.exports = {
     updatePatient,
     deletePatient,
     getPatientHistory
-}
+};

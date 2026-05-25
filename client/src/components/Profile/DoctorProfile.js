@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useContext } from 'react';
-import { NavLink } from 'react-router-dom'
-import { useNavigate, useParams } from "react-router-dom";
+import React, { useEffect, useState, useContext, useCallback } from 'react';
+import { useNavigate } from "react-router-dom";
 import ErrorDialogueBox from '../MUIDialogueBox/ErrorDialogueBox';
 import axios from "axios";
 import Box from '@mui/material/Box';
@@ -21,40 +20,74 @@ function DoctorProfile() {
     const [doctorId, setDoctorId] = useState('');
     const [passwordMatchDisplay, setPasswordMatchDisplay] = useState('none');
     const [passwordValidationMessage, setPasswordValidationMessage] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [errorDialogueBoxOpen, setErrorDialogueBoxOpen] = useState(false);
     const [errorList, setErrorList] = useState([]);
+    
     const handleDialogueOpen = () => {
         setErrorDialogueBoxOpen(true)
     };
+    
     const handleDialogueClose = () => {
         setErrorList([]);
         setErrorDialogueBoxOpen(false)
     };
 
-  
-    const getdoctorById = async () => {
-        let doctorUserId = currentUser.userId;
-    
-        const response = await axios.get(`http://localhost:3001/profile/doctor/`+doctorUserId);
-        console.log(response.data._id);
-        setDoctorId(response.data._id);
-        setFirstName(response.data.userId.firstName);
-        setLastName(response.data.userId.lastName);
-        setEmail(response.data.userId.email);
-        setUsername(response.data.userId.username);
-        setPassword(response.data.userId.password);
-        setConfirmPassword(response.data.userId.password);
-        setPhone(response.data.phone);
-        setDepartment(response.data.department);
-        setPassword(response.data.userId.password);
-        setUserId(response.data.userId._id);
-    };
+    const getDoctorById = useCallback(async () => {
+        if (!currentUser?.userId) {
+            const errorMessage = "User information not available";
+            setErrorList([errorMessage]);
+            handleDialogueOpen();
+            return;
+        }
 
-    const updatedoctoruser = async (e) => {
+        setLoading(true);
+        try {
+            let doctorUserId = currentUser.userId;
+            const response = await axios.get(`http://localhost:3001/profile/doctor/${doctorUserId}`, {
+                headers: {
+                    authorization: `Bearer ${localStorage.getItem("token")}`
+                }
+            });
+            
+            setDoctorId(response.data._id);
+            setFirstName(response.data.userId?.firstName || '');
+            setLastName(response.data.userId?.lastName || '');
+            setEmail(response.data.userId?.email || '');
+            setUsername(response.data.userId?.username || '');
+            setPassword(response.data.userId?.password || '');
+            setConfirmPassword(response.data.userId?.password || '');
+            setPhone(response.data.phone || '');
+            setDepartment(response.data.department || '');
+            setUserId(response.data.userId?._id || '');
+        } catch (error) {
+            console.error("Error fetching doctor profile:", error);
+            const errorMessage = error.response?.data?.message || error.message || "Failed to fetch doctor profile";
+            setErrorList([errorMessage]);
+            handleDialogueOpen();
+        } finally {
+            setLoading(false);
+        }
+    }, [currentUser]);
+
+    const updateDoctorUser = async (e) => {
         e.preventDefault();
-        //let doctorId = doctorId;
-        //alert("doctorId"+doctorId);
+        
+        if (password !== confirmPassword) {
+            setErrorList(["Password and Confirm Password do not match"]);
+            handleDialogueOpen();
+            return;
+        }
+        
+        if (password && password.trim().length > 0 && password.trim().length <= 6) {
+            setErrorList(["Password length must be greater than 6 characters"]);
+            handleDialogueOpen();
+            return;
+        }
+        
+        setIsSubmitting(true);
         
         try {
             await axios.patch(`http://localhost:3001/profile/doctor/${doctorId}`, {
@@ -63,47 +96,70 @@ function DoctorProfile() {
                 username,
                 email,
                 phone,
-                password,
-                confirmPassword,
+                password: password || undefined,
+                confirmPassword: confirmPassword || undefined,
                 department,
                 userId
+            }, {
+                headers: {
+                    authorization: `Bearer ${localStorage.getItem("token")}`
+                }
             });
             navigate("/profile");
         } catch (error) {
-
-            console.log(error);
-            //Display error message
-            setErrorList(error.response.data.errors);
+            console.error("Update error:", error);
+            if (error.response?.data?.errors) {
+                setErrorList(error.response.data.errors);
+            } else if (error.response?.data?.message) {
+                setErrorList([error.response.data.message]);
+            } else {
+                setErrorList([error.message || "Failed to update profile"]);
+            }
             handleDialogueOpen();
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
-
     useEffect(() => {
-        if ((typeof password !== 'undefined') && password.length > 0 && password?.trim()?.length <= 6) {
+        if (password && password.trim().length > 0 && password.trim().length <= 6) {
             setPasswordValidationMessage('Password Length must be greater than 6 characters');
-        }
-        else {
+        } else {
             setPasswordValidationMessage('');
         }
+        
         if (password === confirmPassword) {
             setPasswordMatchDisplay('none');
-        }
-        else {
+        } else {
             setPasswordMatchDisplay('block');
         }
-    }, [password, confirmPassword])
+    }, [password, confirmPassword]);
 
     useEffect(() => {
-        getdoctorById();
-    }, []);
+        getDoctorById();
+    }, [getDoctorById]);
 
+    if (loading) {
+        return (
+            <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+                <div className="page-wrapper">
+                    <div className="content">
+                        <div className="text-center p-4">
+                            <div className="spinner-border text-primary" role="status">
+                                <span className="sr-only">Loading...</span>
+                            </div>
+                            <p>Loading profile...</p>
+                        </div>
+                    </div>
+                </div>
+            </Box>
+        );
+    }
 
     return (
         <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
             <div className="page-wrapper">
                 <div className="content">
-
                     <div className="card-box">
                         <div className="row">
                             <div className="col-lg-8 offset-lg-2">
@@ -112,65 +168,135 @@ function DoctorProfile() {
                         </div>
                         <div className="row">
                             <div className="col-lg-8 offset-lg-2">
-                                <form id="editdoctorForm" name='editdoctorForm' onSubmit={updatedoctoruser}>
+                                <form id="editdoctorForm" name='editdoctorForm' onSubmit={updateDoctorUser}>
                                     <div className="row">
                                         <div className="col-sm-6">
                                             <div className="form-group">
                                                 <label>First Name <span className="text-danger">*</span></label>
-                                                <input name="firstName" className="form-control" type="text" required value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+                                                <input 
+                                                    name="firstName" 
+                                                    className="form-control" 
+                                                    type="text" 
+                                                    required 
+                                                    value={firstName} 
+                                                    onChange={(event) => setFirstName(event.target.value)}
+                                                    disabled={isSubmitting}
+                                                />
                                             </div>
                                         </div>
                                         <div className="col-sm-6">
                                             <div className="form-group">
                                                 <label>Last Name</label>
-                                                <input name="lastName" className="form-control" type="text" required value={lastName} onChange={(event) => setLastName(event.target.value)} />
+                                                <input 
+                                                    name="lastName" 
+                                                    className="form-control" 
+                                                    type="text" 
+                                                    required 
+                                                    value={lastName} 
+                                                    onChange={(event) => setLastName(event.target.value)}
+                                                    disabled={isSubmitting}
+                                                />
                                             </div>
                                         </div>
                                         <div className="col-sm-6">
                                             <div className="form-group">
                                                 <label>Username <span className="text-danger">*</span></label>
-                                                <input name="username" className="form-control" type="text" required value={username} onChange={(event) => setUsername(event.target.value)} />
+                                                <input 
+                                                    name="username" 
+                                                    className="form-control" 
+                                                    type="text" 
+                                                    required 
+                                                    value={username} 
+                                                    onChange={(event) => setUsername(event.target.value)}
+                                                    disabled={isSubmitting}
+                                                />
                                             </div>
                                         </div>
                                         <div className="col-sm-6">
                                             <div className="form-group">
                                                 <label>Email <span className="text-danger">*</span></label>
-                                                <input name="email" className="form-control" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+                                                <input 
+                                                    name="email" 
+                                                    className="form-control" 
+                                                    type="email" 
+                                                    required 
+                                                    value={email} 
+                                                    onChange={(event) => setEmail(event.target.value)}
+                                                    disabled={isSubmitting}
+                                                />
                                             </div>
                                         </div>
                                         <div className="col-sm-6">
                                             <div className="form-group">
                                                 <label>Password</label>
-                                                <input name="password" className="form-control" type="password" required value={password} onChange={(event) => setPassword(event.target.value)} />
+                                                <input 
+                                                    name="password" 
+                                                    className="form-control" 
+                                                    type="password" 
+                                                    value={password} 
+                                                    onChange={(event) => setPassword(event.target.value)}
+                                                    disabled={isSubmitting}
+                                                />
+                                                {passwordValidationMessage && (
+                                                    <small className="text-danger">{passwordValidationMessage}</small>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="col-sm-6">
                                             <div className="form-group">
                                                 <label>Confirm Password</label>
-                                                <input name="confirmPassword" className="form-control" type="password" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+                                                <input 
+                                                    name="confirmPassword" 
+                                                    className="form-control" 
+                                                    type="password" 
+                                                    value={confirmPassword} 
+                                                    onChange={(event) => setConfirmPassword(event.target.value)}
+                                                    disabled={isSubmitting}
+                                                />
+                                                <small className="text-danger" style={{ display: passwordMatchDisplay }}>
+                                                    Passwords do not match
+                                                </small>
                                             </div>
                                         </div>
                                         <div className="col-sm-6">
                                             <div className="form-group">
                                                 <label>Phone </label>
-                                                <input name="phone" className="form-control" type="text" value={phone} onChange={(event) => setPhone(event.target.value)} />
+                                                <input 
+                                                    name="phone" 
+                                                    className="form-control" 
+                                                    type="text" 
+                                                    value={phone} 
+                                                    onChange={(event) => setPhone(event.target.value)}
+                                                    disabled={isSubmitting}
+                                                />
                                             </div>
                                         </div>
                                         <div className="col-sm-6">
                                             <div className="form-group">
                                                 <label>Department</label>
-                                                <select disabled name="department" className="form-select" value={department} onChange={(event) => setDepartment(event.target.value)}>
+                                                <select 
+                                                    disabled 
+                                                    name="department" 
+                                                    className="form-select" 
+                                                    value={department} 
+                                                    onChange={(event) => setDepartment(event.target.value)}
+                                                >
                                                     <option value="Cardiology">Cardiology</option>
                                                     <option value="Gynecology">Gynecology</option>
                                                     <option value="Hematology">Hematology</option>
                                                 </select>
                                             </div>
                                         </div>
-
                                     </div>
 
                                     <div className="m-t-20 text-center">
-                                        <button type="submit" className="btn btn-primary submit-btn">Update Profile</button>
+                                        <button 
+                                            type="submit" 
+                                            className="btn btn-primary submit-btn"
+                                            disabled={isSubmitting || loading}
+                                        >
+                                            {isSubmitting ? 'Updating...' : 'Update Profile'}
+                                        </button>
                                     </div>
                                 </form>
                             </div>
@@ -180,7 +306,7 @@ function DoctorProfile() {
                 <ErrorDialogueBox
                     open={errorDialogueBoxOpen}
                     handleToClose={handleDialogueClose}
-                    ErrorTitle="Error: Edit doctor"
+                    ErrorTitle="Error: Edit Doctor"
                     ErrorList={errorList}
                 />
             </div>

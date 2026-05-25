@@ -7,99 +7,143 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import Tooltip from '@mui/material/Tooltip';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import Snackbar from '@mui/material/Snackbar';
 import axios from "axios";
-import moment from "moment"
-import ConfirmDeleteDialogue from '../MUIDialogueBox/ConfirmDeleteDialogue'
-import { BootstrapDialog, BootstrapDialogTitle } from "../MUIDialogueBox/BoostrapDialogueBox"
+import moment from "moment";
+import ConfirmDeleteDialogue from '../MUIDialogueBox/ConfirmDeleteDialogue';
+import { BootstrapDialog, BootstrapDialogTitle } from "../MUIDialogueBox/BoostrapDialogueBox";
 import DialogContent from '@mui/material/DialogContent';
-import PrescriptionForm from '../Forms/PrescriptionForm'
+import PrescriptionForm from '../Forms/PrescriptionForm';
 import { NavLink } from 'react-router-dom';
-
 
 const columns = [
     { id: 'patientName', label: 'Patient Name', minWidth: 170 },
     { id: 'doctorName', label: 'Doctor Name', minWidth: 100 },
     { id: 'appointmentDate', label: 'Appointment Date', minWidth: 170 },
     { id: 'appointmentTime', label: 'Appointment Time', minWidth: 170 },
-    { id: 'actionsID', label: 'Actions', minWidth: 100 },
-    {id: 'patientID',label: 'patientID', minWidth: 100 }
+    { id: 'actionsID', label: 'Actions', minWidth: 100, align: 'center' },
+    { id: 'patientID', label: 'patientID', minWidth: 100, hidden: true },
+    { id: 'patientFirstName', label: 'patientFirstName', minWidth: 100, hidden: true },
+    { id: 'patientLastName', label: 'patientLastName', minWidth: 100, hidden: true }
 ];
 
-function createData(patientName, doctorName, appointmentDate, appointmentTime, actionsID,patientID) {
-    return { patientName, doctorName, appointmentDate, appointmentTime, actionsID, patientID };
+function createData(patientName, doctorName, appointmentDate, appointmentTime, actionsID, patientID, patientFirstName, patientLastName) {
+    return { patientName, doctorName, appointmentDate, appointmentTime, actionsID, patientID, patientFirstName, patientLastName };
 }
 
-// const rows = [
-//     createData('John Doe', 'Dr. Smith', '2023-03-20', '10:00 AM', ''),
-//     createData('Jane Doe', 'Dr. Johnson', '2023-03-22', '2:00 PM', ''),
-//     createData('Bob Smith', 'Dr. Lee', '2023-03-24', '11:30 AM', ''),
-//     createData('Alice Johnson', 'Dr. Davis', '2023-03-26', '4:00 PM', ''),
-//     createData('Chris Lee', 'Dr. Martin', '2023-03-28', '3:30 PM', ''),
-//     createData('Sarah Davis', 'Dr. Brown', '2023-03-30', '9:45 AM', ''),
-
-// ];
-
-export default function DoctorAppointmentTable({ bookedAppointments, deleteBookedSlots, doctorList, patientList, availableSlots, getAvailableSlots, getBookedSlots }) {
+export default function DoctorAppointmentTable({ 
+    bookedAppointments, 
+    deleteBookedSlots, 
+    doctorList, 
+    patientList, 
+    availableSlots, 
+    getAvailableSlots, 
+    getBookedSlots 
+}) {
     const [page, setPage] = React.useState(0);
-    // const [rows, setRows] = React.useState([]);
     const [rowsPerPage, setRowsPerPage] = React.useState(10);
+    const [loading, setLoading] = React.useState(false);
+    const [successSnackbar, setSuccessSnackbar] = React.useState(false);
+    const [successMessage, setSuccessMessage] = React.useState('');
+    const [errorSnackbar, setErrorSnackbar] = React.useState(false);
+    const [errorMessage, setErrorMessage] = React.useState('');
 
     const [openConfirmDeleteDialogue, setOpenConfirmDeleteDialogue] = React.useState(false);
     const [openPrescriptionFormDialogue, setOpenPrescriptionFormDialogue] = React.useState(false);
 
     const [doctorId, setDoctorId] = React.useState("");
     const [patientId, setPatientId] = React.useState("");
+    const [patientFirstName, setPatientFirstName] = React.useState("");
+    const [patientLastName, setPatientLastName] = React.useState("");
     const [appointmentDate, setAppointmentDate] = React.useState("");
     const [appointmentTime, setAppointmentTime] = React.useState("");
     const [appointmentId, setAppointmentId] = React.useState("");
+    const [appIDToDelete, setAppIDToDelete] = React.useState("");
+    const [prescriptionLoading, setPrescriptionLoading] = React.useState(false);
 
-
-    const handleDeleteDialogueOpen = () => {
+    const handleDeleteDialogueOpen = (appID) => {
+        setAppIDToDelete(appID);
         setOpenConfirmDeleteDialogue(true);
     };
 
     const handleDeleteDialogueClose = () => {
         setOpenConfirmDeleteDialogue(false);
+        setAppIDToDelete("");
     };
 
-    const handlePrescriptionFormOpen = () => {
-        setOpenPrescriptionFormDialogue(true)
-    }
-
     const handlePrescriptionFormClose = () => {
-        setOpenPrescriptionFormDialogue(false)
-    }
+        setOpenPrescriptionFormDialogue(false);
+        // Reset form data
+        setDoctorId("");
+        setPatientId("");
+        setPatientFirstName("");
+        setPatientLastName("");
+        setAppointmentDate("");
+        setAppointmentTime("");
+        setAppointmentId("");
+    };
 
+    const handleDeleteAppointment = async () => {
+        setLoading(true);
+        
+        try {
+            await deleteBookedSlots(appIDToDelete);
+            setSuccessMessage("Appointment deleted successfully!");
+            setSuccessSnackbar(true);
+            handleDeleteDialogueClose();
+            if (getBookedSlots) await getBookedSlots();
+        } catch (error) {
+            console.error("Error deleting appointment:", error);
+            setErrorMessage(error.response?.data?.message || "Failed to delete appointment");
+            setErrorSnackbar(true);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-
-    const prescriptionFormSubmitted = async (event) => {
+    const prescriptionFormSubmitted = async (event, formData) => {
         event.preventDefault();
-        const form = document.forms.prescriptionForm;
-        let appId = form.id.value;
-        let reqObj = {
-            "appointmentId": appId,
-            "remarks": form.remarks.value,
-            "prescribedMed": JSON.parse(form.prescribedMed.value)
-        }
-
-        console.log(reqObj)
-        let response = await axios.post(`http://localhost:3001/prescription/`,
-            reqObj,
-            {
-                headers: {
-                    authorization: `Bearer ${localStorage.getItem("token")}`
+        
+        setPrescriptionLoading(true);
+        
+        try {
+            const reqObj = {
+                appointmentId: appointmentId,
+                remarks: formData?.remarks || '',
+                medicines: formData?.medicines || []
+            };
+            
+            const response = await axios.post(
+                `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/prescriptions`,
+                reqObj,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        authorization: `Bearer ${localStorage.getItem("token")}`
+                    }
                 }
+            );
+            
+            if (response.data.message === "success") {
+                setSuccessMessage("Prescription saved successfully!");
+                setSuccessSnackbar(true);
+                if (getBookedSlots) await getBookedSlots();
+                handlePrescriptionFormClose();
+            } else {
+                setErrorMessage(response.data.message || "Failed to save prescription");
+                setErrorSnackbar(true);
             }
-        );
-        if (response.data.message == "success") {
-            getAvailableSlots();
-            getBookedSlots();
-            handlePrescriptionFormClose()
+        } catch (error) {
+            console.error("Error saving prescription:", error);
+            setErrorMessage(error.response?.data?.message || "Network error. Please try again.");
+            setErrorSnackbar(true);
+        } finally {
+            setPrescriptionLoading(false);
         }
-    }
+    };
 
     const handleChangePage = (event, newPage) => {
         setPage(newPage);
@@ -109,170 +153,252 @@ export default function DoctorAppointmentTable({ bookedAppointments, deleteBooke
         setRowsPerPage(+event.target.value);
         setPage(0);
     };
+
     const formatDateForDateInput = (dateOfJoining) => {
-        // console.log("dateOfJoining",dateOfJoining);
-        dateOfJoining = moment(new Date(dateOfJoining.slice(0, -1))).format('YYYY-MM-DD');
-        // console.log("dateOfJoining",dateOfJoining);
-        return dateOfJoining;
-    }
+        if (!dateOfJoining) return '';
+        const dateStr = dateOfJoining.slice(0, -1);
+        return moment(new Date(dateStr)).format('YYYY-MM-DD');
+    };
 
-    const setFormProperties = async (appID) => {
-        const response = await axios.get(`http://localhost:3001/appointments/${appID}`, {
-            headers: {
-                authorization: `Bearer ${localStorage.getItem("token")}`
-            }
+    const setFormProperties = (appID, rowData) => {
+        // Set data directly from the row without API call
+        setPatientId(rowData.patientID);
+        setPatientFirstName(rowData.patientFirstName || '');
+        setPatientLastName(rowData.patientLastName || '');
+        setAppointmentDate(rowData.appointmentDate);
+        setAppointmentTime(rowData.appointmentTime);
+        setAppointmentId(appID);
+        setDoctorId(doctorList[0]?._id || "");
+        
+        // Open the dialog immediately
+        setOpenPrescriptionFormDialogue(true);
+    };
+
+    // Create rows from booked appointments
+    const rows = React.useMemo(() => {
+        if (!bookedAppointments || bookedAppointments.length === 0) return [];
+        
+        return bookedAppointments.map((apt) => {
+            const firstName = apt.patientId?.userId?.firstName || apt.patientId?.firstName || '';
+            const lastName = apt.patientId?.userId?.lastName || apt.patientId?.lastName || '';
+            const patientNameDisplay = firstName && lastName ? `${firstName} ${lastName}` : 'Unknown Patient';
+            
+            const doctorNameDisplay = apt.doctorId?.userId 
+                ? `Dr. ${apt.doctorId.userId.firstName || ''} ${apt.doctorId.userId.lastName || ''}`.trim()
+                : 'Unknown Doctor';
+            
+            return createData(
+                patientNameDisplay,
+                doctorNameDisplay,
+                formatDateForDateInput(apt.appointmentDate),
+                apt.appointmentTime,
+                apt._id,
+                apt.patientId?._id || '',
+                firstName,
+                lastName
+            );
         });
-        let app = response.data.appointment
-        console.log(app);
-        setDoctorId(app.doctorId)
-        setPatientId(app.patientId)
-        setAppointmentDate(formatDateForDateInput(app.appointmentDate));
-        setAppointmentTime(app.appointmentTime);
-        setAppointmentId(app._id)
-        // console.log(doctorId)
-        // console.log(patientId)
-        // console.log(appointmentDate)
-        // console.log(appointmentTime)
+    }, [bookedAppointments]);
 
+    const visibleColumns = React.useMemo(() => {
+        return columns.filter(column => !column.hidden);
+    }, []);
+
+    // Get full patient name for dialog title
+    const getFullPatientName = () => {
+        if (patientFirstName || patientLastName) {
+            return `${patientFirstName} ${patientLastName}`.trim();
+        }
+        return 'Patient';
+    };
+
+    if (!bookedAppointments || bookedAppointments.length === 0) {
+        return (
+            <Paper sx={{ width: '95%', overflow: 'hidden', marginTop: 5, boxShadow: "0 12px 24px rgba(0, 0, 0, 0.2)", p: 4 }}>
+                <Alert severity="info" sx={{ justifyContent: 'center' }}>
+                    No appointments found. Please check back later.
+                </Alert>
+            </Paper>
+        );
     }
-
-
-
-    let rows = bookedAppointments.map((apt) => {
-        // console.log("inside map",await getPatientByID(apt.patientId))
-        return createData(
-            apt.patientId.userId.firstName + " " + apt.patientId.userId.lastName,
-            apt.doctorId.userId.firstName + " " + apt.doctorId.userId.lastName,
-            formatDateForDateInput(apt.appointmentDate),
-            apt.appointmentTime,
-            apt._id,
-            apt.patientId._id
-        )
-    })
-
-
-
-    React.useEffect(() => {
-
-    }, [])
-
-
-
-    // getDoctorByID(bookedAppointments[0].doctorId);
-    // getPatientByID(bookedAppointments[0].patientId);
 
     return (
-        <Paper sx={{ width: '95%', overflow: 'hidden', marginTop: 5, boxShadow: "0 12px 24px rgba(0, 0, 0, 0.2) " }}>
-            <TableContainer sx={{ maxHeight: 440 }}>
-                <Table stickyHeader aria-label="sticky table">
-                    <TableHead>
-                        <TableRow>
-                            {columns.map((column) => {
-                                if(column.id !='patientID'){
+        <>
+            <Paper sx={{ width: '95%', overflow: 'hidden', marginTop: 5, boxShadow: "0 12px 24px rgba(0, 0, 0, 0.2)" }}>
+                <TableContainer sx={{ maxHeight: 440 }}>
+                    <Table stickyHeader aria-label="sticky table">
+                        <TableHead>
+                            <TableRow>
+                                {visibleColumns.map((column) => (
+                                    <TableCell
+                                        key={column.id}
+                                        align={column.align || 'left'}
+                                        style={{ 
+                                            minWidth: column.minWidth, 
+                                            fontWeight: "bold",
+                                            backgroundColor: '#f5f5f5'
+                                        }}
+                                    >
+                                        {column.label}
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {rows
+                                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                .map((row, index) => {
                                     return (
-                                        <TableCell
-                                            key={column.id}
-                                            align={column.align}
-                                            style={{ minWidth: column.minWidth, fontWeight: "bold" }}
+                                        <TableRow 
+                                            hover 
+                                            role="checkbox" 
+                                            tabIndex={-1} 
+                                            key={row.actionsID || index}
+                                            sx={{ '&:hover': { backgroundColor: '#f9f9f9' } }}
                                         >
-                                            {column.label}
-                                        </TableCell>
-                                    )
-                                }
-                                
-                            })}
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {rows
-                            .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                            .map((row) => {
-                                return (
-                                    <TableRow hover role="checkbox" tabIndex={-1} key={row.code}>
-                                        {columns.map((column) => {
-                                            const value = row[column.id];
-                                            if (column.id === 'actionsID') {
-                                                return (
-                                                    <TableCell key={column.id} align={column.align}>
-                                                        <div
-                                                            className="btn btn-outline-primary take-btn"
-                                                            onClick={() => {
-                                                                setFormProperties(value)
-                                                                handlePrescriptionFormOpen()
-                                                            }}
-                                                        >
-                                                            Take up
-                                                        </div>
-                                                    </TableCell>
-                                                );
-                                            }
-                                            else if(column.id === 'patientName'){
-                                                return (
-                                                    <TableCell key={column.id} align={column.align}>
-                                                        {column.format && typeof value === 'number'
-                                                            ? column.format(value)
-                                                            : <NavLink to={`/patient/history/${row["patientID"]}`} className="text-muted"> {value} </NavLink>}
-                                                    </TableCell>
-                                                )
+                                            {visibleColumns.map((column) => {
+                                                const value = row[column.id];
                                                 
-                                            }
-                                            else if(column.id === 'patientID'){
-                                                return ;
-                                            }
-                                             else {
+                                                if (column.id === 'actionsID') {
+                                                    return (
+                                                        <TableCell key={column.id} align={column.align || 'center'}>
+                                                            <div className="d-flex gap-2" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                                <Tooltip title="Create Prescription" placement="top" arrow>
+                                                                    <button
+                                                                        className="btn btn-primary btn-sm"
+                                                                        onClick={() => setFormProperties(value, row)}
+                                                                        disabled={loading}
+                                                                        style={{ minWidth: '100px' }}
+                                                                    >
+                                                                        <i className="fa fa-prescription-bottle me-1"></i>
+                                                                        Write Prescription
+                                                                    </button>
+                                                                </Tooltip>
+                                                                <Tooltip title="Delete Appointment" placement="top" arrow>
+                                                                    <button
+                                                                        className="btn btn-danger btn-sm"
+                                                                        onClick={() => handleDeleteDialogueOpen(value)}
+                                                                        disabled={loading}
+                                                                    >
+                                                                        <i className="fa fa-trash me-1"></i>
+                                                                        Delete
+                                                                    </button>
+                                                                </Tooltip>
+                                                            </div>
+                                                        </TableCell>
+                                                    );
+                                                } 
+                                                
+                                                if (column.id === 'patientName') {
+                                                    const patientID = row.patientID;
+                                                    return (
+                                                        <TableCell key={column.id} align={column.align || 'left'}>
+                                                            {patientID ? (
+                                                                <NavLink 
+                                                                    to={`/doctor/dashboard/patient/history/${patientID}`} 
+                                                                    className="text-decoration-none"
+                                                                    style={{ color: '#1976d2', textDecoration: 'none' }}
+                                                                >
+                                                                    {value || '-'}
+                                                                </NavLink>
+                                                            ) : (
+                                                                value || '-'
+                                                            )}
+                                                        </TableCell>
+                                                    );
+                                                }
+                                                
                                                 return (
-                                                    <TableCell key={column.id} align={column.align}>
-                                                        {column.format && typeof value === 'number'
-                                                            ? column.format(value)
-                                                            : value}
+                                                    <TableCell key={column.id} align={column.align || 'left'}>
+                                                        {value || '-'}
                                                     </TableCell>
                                                 );
-                                            }
-                                        })}
-                                    </TableRow>
-                                );
-                            })}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-            <TablePagination
-                rowsPerPageOptions={[10, 25, 100]}
-                component="div"
-                count={rows.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                sx={{
-                    "& p": {
-                        "marginTop": 'auto',
-                        "marginBottom": 'auto'
-                    }
-                }}
+                                            })}
+                                        </TableRow>
+                                    );
+                                })}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                <TablePagination
+                    rowsPerPageOptions={[10, 25, 50, 100]}
+                    component="div"
+                    count={rows.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                />
+            </Paper>
+
+            <ConfirmDeleteDialogue
+                title="Delete Appointment"
+                message="Are you sure you want to delete this appointment?"
+                itemName="Appointment"
+                open={openConfirmDeleteDialogue}
+                handleClose={handleDeleteDialogueClose}
+                handleDelete={handleDeleteAppointment}
+                loading={loading}
+                deleteButtonText="Delete Appointment"
             />
+
             <BootstrapDialog
                 onClose={handlePrescriptionFormClose}
                 aria-labelledby="customized-dialog-title"
                 open={openPrescriptionFormDialogue}
-                width={"550"}
+                maxWidth="md"
+                fullWidth
             >
                 <BootstrapDialogTitle id="customized-dialog-title" onClose={handlePrescriptionFormClose}>
-                    Prescription
+                    Create Prescription for {getFullPatientName()}
                 </BootstrapDialogTitle>
                 <DialogContent dividers>
-                    <PrescriptionForm
-                        formName="prescriptionForm"
-                        formOnSubmit={prescriptionFormSubmitted}
-                        appDate={appointmentDate}
-                        appTime={appointmentTime}
-                        doctorSelected={doctorId}
-                        patientSelected={patientId}
-                        doctorList={doctorList}
-                        patientList={patientList}
-                        availableSlots={availableSlots}
-                        appointmentId={appointmentId} />
+                    {prescriptionLoading ? (
+                        <div style={{ textAlign: 'center', padding: '20px' }}>
+                            <CircularProgress />
+                            <p style={{ marginTop: '10px' }}>Saving prescription...</p>
+                        </div>
+                    ) : (
+                        <PrescriptionForm
+                            formName="prescriptionForm"
+                            formOnSubmit={prescriptionFormSubmitted}
+                            appDate={appointmentDate}
+                            appTime={appointmentTime}
+                            doctorSelected={doctorId}
+                            patientSelected={patientId}
+                            patientName={getFullPatientName()}
+                            patientFirstName={patientFirstName}
+                            patientLastName={patientLastName}
+                            doctorList={doctorList}
+                            patientList={patientList}
+                            availableSlots={availableSlots}
+                            appointmentId={appointmentId}
+                        />
+                    )}
                 </DialogContent>
             </BootstrapDialog>
-        </Paper>
+
+            <Snackbar
+                open={successSnackbar}
+                autoHideDuration={3000}
+                onClose={() => setSuccessSnackbar(false)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert severity="success" onClose={() => setSuccessSnackbar(false)} elevation={6}>
+                    {successMessage}
+                </Alert>
+            </Snackbar>
+
+            <Snackbar
+                open={errorSnackbar}
+                autoHideDuration={6000}
+                onClose={() => setErrorSnackbar(false)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert severity="error" onClose={() => setErrorSnackbar(false)} elevation={6}>
+                    {errorMessage}
+                </Alert>
+            </Snackbar>
+        </>
     );
 }

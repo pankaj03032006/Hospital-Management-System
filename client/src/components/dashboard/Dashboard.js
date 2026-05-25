@@ -1,20 +1,17 @@
 import Header from "../Layout/Header/Header";
 import Sidebar from "../Layout/Sidebar/Sidebar";
 import styles from './Dashboard.module.css';
-// import  './Dashboard.module.css';
-// import * as React from 'react';
-import { styled, useTheme } from '@mui/material/styles';
+
+import React, { useContext, useEffect, useState } from 'react';
+
+import { styled } from '@mui/material/styles';
+
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
-import Typography from '@mui/material/Typography';
-import { Outlet } from "react-router-dom";
 
+import { Outlet, useNavigate } from "react-router-dom";
 
-import { UserContext } from '../../Context/UserContext'
-import React, { useContext, useEffect } from 'react';
-import { useNavigate } from "react-router-dom";
-
-
+import { UserContext } from '../../Context/UserContext';
 
 const drawerWidth = 240;
 
@@ -23,13 +20,19 @@ const DrawerHeader = styled('div')(({ theme }) => ({
     alignItems: 'center',
     justifyContent: 'flex-end',
     padding: theme.spacing(0, 1),
-    // necessary for content to be below app bar
     ...theme.mixins.toolbar,
 }));
 
-
 export default function Dashboard() {
-    const [open, setOpen] = React.useState(false);
+
+    const [open, setOpen] = useState(false);
+
+    const navigate = useNavigate();
+
+    const {
+        currentUser,
+        loading
+    } = useContext(UserContext);
 
     const handleDrawerOpen = () => {
         setOpen(true);
@@ -39,28 +42,75 @@ export default function Dashboard() {
         setOpen(false);
     };
 
-    const { currentUser, signInUser, isLoggedIn } = useContext(UserContext);
-    const navigate = useNavigate();
+    // Check authentication
 
     useEffect(() => {
-        if (localStorage.getItem("token") != null && localStorage.getItem("currentUser") != null) {
-            let user = JSON.parse(localStorage.getItem("currentUser"));
-            let token = localStorage.getItem("token")
-            signInUser(user, token);
-        }
-        else {
-            navigate("/login");
-        }
-    }, [isLoggedIn]);
 
+        if (!loading) {
 
+            if (!currentUser?.userType) {
+
+                navigate('/login');
+
+            }
+
+        }
+
+    }, [currentUser, loading, navigate]);
+
+    // Show loading while checking auth
+
+    if (loading) {
+
+        return (
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100vh'
+                }}
+            >
+                Loading...
+            </div>
+        );
+
+    }
 
     return (
+
         <Box sx={{ display: 'flex' }}>
+
             <CssBaseline />
-            <Header open={open} handleDrawerOpen={handleDrawerOpen} headerTitle="Dashboard" />
-            <Sidebar open={open} handleDrawerClose={handleDrawerClose} handleDrawerOpen={handleDrawerOpen} />
-            <Outlet />
+
+            <Header
+                open={open}
+                handleDrawerOpen={handleDrawerOpen}
+                headerTitle="Dashboard"
+            />
+
+            <Sidebar
+                open={open}
+                handleDrawerClose={handleDrawerClose}
+                handleDrawerOpen={handleDrawerOpen}
+            />
+
+            <Box
+                component="main"
+                sx={{
+                    flexGrow: 1,
+                    p: 3
+                }}
+            >
+
+                <DrawerHeader />
+
+                <Outlet />
+
+            </Box>
+
         </Box>
+
     );
+
 }

@@ -3,24 +3,23 @@ const Doctor = require("../models/doctor.js");
 const Patient = require("../models/patient.js");
 const mongoose = require("mongoose");
 
-
 const getDepartments = async (req, res) => {
     try {
         let departmentList = await Doctor.distinct("department");
         res.json({ message: "success", 'departments': departmentList });
-    }
-    catch (error) {
+    } catch (error) {
+        console.error("Error in getDepartments:", error);
         res.status(500).json({ errors: [error.message] });
     }
 }
 
 const getAppointments = async (req, res) => {
     try {
-        // console.log("appDate",req.body.appDate)
         let isTimeSlotAvailable = req.body.isTimeSlotAvailable;
-        let appointmentDate = req.body.appDate?(new Date(req.body.appDate).toISOString().slice(0, 10)):null;
+        let appointmentDate = req.body.appDate ? new Date(req.body.appDate).toISOString().slice(0, 10) : null;
         let docID = req.body.doctorID;
         let appointments = [];
+        
         if (isTimeSlotAvailable) {
             if (docID) {
                 appointments = await Appointment.find({
@@ -28,8 +27,7 @@ const getAppointments = async (req, res) => {
                     'appointmentDate': appointmentDate,
                     'doctorId': mongoose.Types.ObjectId(docID)
                 });
-            }
-            else if (req.sender.userType == "Doctor") {
+            } else if (req.sender && req.sender.userType === "Doctor") {
                 appointments = await Appointment.find({
                     'isTimeSlotAvailable': isTimeSlotAvailable,
                     'appointmentDate': appointmentDate,
@@ -39,26 +37,24 @@ const getAppointments = async (req, res) => {
                     populate: {
                         path: 'userId'
                     }
-                })
-                    .populate({
-                        path: 'patientId',
-                        populate: {
-                            path: 'userId'
-                        }
-                    });
+                }).populate({
+                    path: 'patientId',
+                    populate: {
+                        path: 'userId'
+                    }
+                });
             }
-        } else if (isTimeSlotAvailable == false) {
-            // console.log("here 2")
-            if (req.sender.userType == "Admin") {
+        } else if (isTimeSlotAvailable === false) {
+            if (req.sender && req.sender.userType === "Admin") {
                 let query = {
                     'isTimeSlotAvailable': false,
                     'appointmentDate': appointmentDate,
                     "completed": false
-                }
+                };
                 if (docID) {
-                    query.doctorId = mongoose.Types.ObjectId(docID)
+                    query.doctorId = mongoose.Types.ObjectId(docID);
                 }
-                // appointments = await Appointment.find(query).lean();
+                
                 appointments = await Appointment.find(query)
                     .populate({
                         path: 'doctorId',
@@ -72,34 +68,34 @@ const getAppointments = async (req, res) => {
                             path: 'userId'
                         }
                     });
-            }
-            else if (req.sender.userType == "Patient") {
-                console.log("patientId" , req.sender.patientId);
+            } else if (req.sender && req.sender.userType === "Patient") {
                 let query = {
                     'isTimeSlotAvailable': false,
                     'completed': false,
                     'patientId': req.sender.patientId
-                }
-                if (docID){
-                    query.doctorId = mongoose.Types.ObjectId(docID)
+                };
+                
+                if (docID) {
+                    query.doctorId = mongoose.Types.ObjectId(docID);
                 }
                 if (appointmentDate) {
-                    query.appointmentDate = appointmentDate
+                    query.appointmentDate = appointmentDate;
                 }
-                appointments = await Appointment.find(query).populate({
-                    path: 'doctorId',
-                    populate: {
-                        path: 'userId'
-                    }
-                })
+                
+                appointments = await Appointment.find(query)
+                    .populate({
+                        path: 'doctorId',
+                        populate: {
+                            path: 'userId'
+                        }
+                    })
                     .populate({
                         path: 'patientId',
                         populate: {
                             path: 'userId'
                         }
                     });
-            }
-            else if (req.sender.userType == "Doctor") {
+            } else if (req.sender && req.sender.userType === "Doctor") {
                 appointments = await Appointment.find({
                     'isTimeSlotAvailable': false,
                     'completed': false,
@@ -110,128 +106,176 @@ const getAppointments = async (req, res) => {
                     populate: {
                         path: 'userId'
                     }
-                })
-                    .populate({
-                        path: 'patientId',
-                        populate: {
-                            path: 'userId'
-                        }
-                    });
+                }).populate({
+                    path: 'patientId',
+                    populate: {
+                        path: 'userId'
+                    }
+                });
             }
-            // console.log(appointments)
         }
-        // console.log("appointmentDate",appointmentDate);
-        // console.log("docID",docID);
-        // console.log("isTimeSlotAvailable",isTimeSlotAvailable);
-        // console.log("appointments",appointments);
+        
         res.json({ message: "success", 'appointments': appointments });
     } catch (error) {
+        console.error("Error in getAppointments:", error);
         res.status(500).json({ errors: [error.message] });
     }
 }
 
 const createAppointmentSlot = async (req, res) => {
     try {
-        let appDate = (new Date(req.body.appDate).toISOString().slice(0, 10));
+        let appDate = new Date(req.body.appDate).toISOString().slice(0, 10);
         let timeSlots = req.body.timeSlots;
         let docID = req.body.doctorID;
-        // console.log(slot)
-        for (slot of timeSlots) {
+        
+        if (!timeSlots || !Array.isArray(timeSlots) || timeSlots.length === 0) {
+            return res.status(400).json({ errors: ["No time slots provided"] });
+        }
+        
+        if (!docID) {
+            return res.status(400).json({ errors: ["Doctor ID is required"] });
+        }
+        
+        for (let slot of timeSlots) {
             let app = await Appointment.find({
                 'appointmentDate': appDate,
                 'appointmentTime': slot,
                 'doctorId': docID
             });
+            
             if (!(app.length > 0)) {
-                let appointment = await Appointment.create({
+                await Appointment.create({
                     'appointmentDate': appDate,
                     'appointmentTime': slot,
                     'doctorId': docID
                 });
             }
         }
-        // console.log(appDate)
+        
         res.json({ message: "success" });
-
-
     } catch (error) {
-        res.status(404).json({ errors: [error.message] });
+        console.error("Error in createAppointmentSlot:", error);
+        res.status(500).json({ errors: [error.message] });
     }
 }
 
 const bookAppointment = async (req, res) => {
     try {
+        const { appDate, appTime, doctorId, patientId } = req.body;
+        
+        if (!appDate || !appTime || !doctorId || !patientId) {
+            return res.status(400).json({ 
+                errors: ["Missing required fields: appDate, appTime, doctorId, patientId"] 
+            });
+        }
+        
         let appointment = await Appointment.findOneAndUpdate({
             'isTimeSlotAvailable': true,
-            'appointmentDate': req.body.appDate,
-            'appointmentTime': req.body.appTime,
-            'doctorId': mongoose.Types.ObjectId(req.body.doctorId)
+            'appointmentDate': appDate,
+            'appointmentTime': appTime,
+            'doctorId': mongoose.Types.ObjectId(doctorId)
         }, {
             'isTimeSlotAvailable': false,
-            'patientId': mongoose.Types.ObjectId(req.body.patientId)
-        });
-        // console.log("appointment",appointment);
+            'patientId': mongoose.Types.ObjectId(patientId)
+        }, { new: true });
+        
         if (appointment) {
             res.json({ message: "success" });
-        }
-        else {
-            res.status(404).json({ errors: ["Could not book appointment. Please Try again."] });
+        } else {
+            res.status(404).json({ errors: ["Could not book appointment. Please try again."] });
         }
     } catch (error) {
-        res.status(404).json({ errors: [error.message] });
+        console.error("Error in bookAppointment:", error);
+        res.status(500).json({ errors: [error.message] });
     }
 }
 
 const deleteAppointment = async (req, res) => {
-    // console.log("delete appointment")
     try {
-        let appointment = await Appointment.findByIdAndDelete(req.body.appointmentId);
+        const { appointmentId } = req.body;
+        
+        if (!appointmentId) {
+            return res.status(400).json({ errors: ["Appointment ID is required"] });
+        }
+        
+        let appointment = await Appointment.findByIdAndDelete(appointmentId);
+        
         if (appointment) {
             res.json({ message: "success" });
-        }
-        else {
+        } else {
             res.status(404).json({ errors: ["Could not delete appointment"] });
         }
     } catch (error) {
-        res.status(404).json({ errors: [error.message] });
+        console.error("Error in deleteAppointment:", error);
+        res.status(500).json({ errors: [error.message] });
     }
 }
+
 const getAppointmentById = async (req, res) => {
     try {
-        const appointment = await Appointment.findById(req.params.id).lean();
-        appointment.doctorDetails = await Doctor.findById(appointment.doctorId);
-        appointment.patientDetails = await Patient.findById(appointment.patientId);
+        const { id } = req.params;
+        
+        if (!id) {
+            return res.status(400).json({ errors: ["Appointment ID is required"] });
+        }
+        
+        const appointment = await Appointment.findById(id).lean();
+        
+        if (!appointment) {
+            return res.status(404).json({ errors: ["Appointment not found"] });
+        }
+        
+        if (appointment.doctorId) {
+            appointment.doctorDetails = await Doctor.findById(appointment.doctorId);
+        }
+        if (appointment.patientId) {
+            appointment.patientDetails = await Patient.findById(appointment.patientId);
+        }
+        
         res.json({ message: "success", "appointment": appointment });
     } catch (error) {
-        res.status(404).json({ errors: [error.message] });
+        console.error("Error in getAppointmentById:", error);
+        res.status(500).json({ errors: [error.message] });
     }
 }
 
 const updateAppointmentById = async (req, res) => {
     try {
+        const { id } = req.params;
+        const { appDate, appTime, doctorId, patientId } = req.body;
+        
+        if (!id) {
+            return res.status(400).json({ errors: ["Appointment ID is required"] });
+        }
+        
         const appointment = await Appointment.findByIdAndUpdate(
-            req.params.id,
+            id,
             {
                 'isTimeSlotAvailable': false,
-                'appointmentDate': req.body.appDate,
-                'appointmentTime': req.body.appTime,
-                'doctorId': mongoose.Types.ObjectId(req.body.doctorId),
-                'patientId': mongoose.Types.ObjectId(req.body.patientId)
-            });
+                'appointmentDate': appDate,
+                'appointmentTime': appTime,
+                'doctorId': mongoose.Types.ObjectId(doctorId),
+                'patientId': mongoose.Types.ObjectId(patientId)
+            },
+            { new: true }
+        );
+        
         if (appointment) {
-            const openSlot = await Appointment.findOneAndDelete({
+            // Delete the open slot if it exists
+            await Appointment.findOneAndDelete({
                 'isTimeSlotAvailable': true,
-                'appointmentDate': req.body.appDate,
-                'appointmentTime': req.body.appTime,
-            })
+                'appointmentDate': appDate,
+                'appointmentTime': appTime,
+            });
             res.json({ message: "success" });
+        } else {
+            res.status(404).json({ errors: ["Could not update appointment"] });
         }
-
     } catch (error) {
-        res.status(404).json({ errors: [error.message] });
+        console.error("Error in updateAppointmentById:", error);
+        res.status(500).json({ errors: [error.message] });
     }
 }
-
 
 module.exports = {
     getDepartments,
@@ -241,4 +285,4 @@ module.exports = {
     bookAppointment,
     deleteAppointment,
     updateAppointmentById
-}
+};

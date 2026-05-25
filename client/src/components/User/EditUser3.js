@@ -1,12 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import Header from '../../components/Layout/Header/Header';
-import Sidebar from '../../components/Layout/Sidebar/Sidebar';
-import { NavLink } from 'react-router-dom'
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from "react-router-dom";
 import ErrorDialogueBox from '../MUIDialogueBox/ErrorDialogueBox';
 import axios from "axios";
 import Box from '@mui/material/Box';
-import CssBaseline from '@mui/material/CssBaseline';
 
 function EditUser() {
   const navigate = useNavigate();
@@ -19,39 +15,82 @@ function EditUser() {
   const [userType, setUserType] = useState('');
   const [passwordMatchDisplay, setPasswordMatchDisplay] = useState('none');
   const [passwordValidationMessage, setPasswordValidationMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { id } = useParams();
 
   const [errorDialogueBoxOpen, setErrorDialogueBoxOpen] = useState(false);
   const [errorList, setErrorList] = useState([]);
+  
   const handleDialogueOpen = () => {
     setErrorDialogueBoxOpen(true)
   };
+  
   const handleDialogueClose = () => {
     setErrorList([]);
     setErrorDialogueBoxOpen(false)
   };
 
+  const getUserById = useCallback(async () => {
+    if (!id) {
+      const errorMessage = "No user ID provided";
+      setErrorList([errorMessage]);
+      handleDialogueOpen();
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.get(`http://localhost:3001/users/${id}`, {
+        headers: {
+          authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      });
+      
+      setFirstName(response.data.firstName || '');
+      setLastName(response.data.lastName || '');
+      setEmail(response.data.email || '');
+      setUsername(response.data.username || '');
+      setPassword(response.data.password || '');
+      setConfirmPassword(response.data.password || '');
+      setUserType(response.data.userType || '');
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to fetch user data";
+      setErrorList([errorMessage]);
+      handleDialogueOpen();
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     getUserById();
-  }, []);
-
-  const getUserById = async () => {
-    const response = await axios.get(`http://localhost:3001/users/${id}`, {
-      headers: {
-        authorization: `Bearer ${localStorage.getItem("token")}`
-      }
-    },);
-    setFirstName(response.data.firstName);
-    setLastName(response.data.lastName);
-    setEmail(response.data.email);
-    setUsername(response.data.username);
-    setPassword(response.data.password);
-    setConfirmPassword(response.data.password);
-    setUserType(response.data.userType);
-  };
+  }, [getUserById]);
 
   const updateUser = async (e) => {
     e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      setErrorList(["Password and Confirm Password do not match"]);
+      handleDialogueOpen();
+      return;
+    }
+    
+    if (password && password.trim().length > 0 && password.trim().length <= 6) {
+      setErrorList(["Password length must be greater than 6 characters"]);
+      handleDialogueOpen();
+      return;
+    }
+    
+    if (!firstName || !lastName || !username || !email || !userType) {
+      setErrorList(["Please fill in all required fields"]);
+      handleDialogueOpen();
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     try {
       await axios.patch(`http://localhost:3001/users/${id}`,
         {
@@ -59,8 +98,8 @@ function EditUser() {
           lastName,
           username,
           email,
-          password,
-          confirmPassword,
+          password: password || undefined,
+          confirmPassword: confirmPassword || undefined,
           userType
         },
         {
@@ -70,86 +109,166 @@ function EditUser() {
         });
       navigate("/users");
     } catch (error) {
-      console.log(error);
-      //Display error message
-      setErrorList(error.response.data.errors);
+      console.error("Update user error:", error);
+      if (error.response?.data?.errors) {
+        setErrorList(error.response.data.errors);
+      } else if (error.response?.data?.message) {
+        setErrorList([error.response.data.message]);
+      } else {
+        setErrorList([error.message || "Failed to update user"]);
+      }
       handleDialogueOpen();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-
   useEffect(() => {
-    if (password.length > 0 && password?.trim()?.length <= 6) {
+    if (password && password.trim().length > 0 && password.trim().length <= 6) {
       setPasswordValidationMessage('Password Length must be greater than 6 characters');
-    }
-    else {
+    } else {
       setPasswordValidationMessage('');
     }
+    
     if (password === confirmPassword) {
       setPasswordMatchDisplay('none');
-    }
-    else {
+    } else {
       setPasswordMatchDisplay('block');
     }
-  }, [password, confirmPassword])
+  }, [password, confirmPassword]);
+
+  if (loading) {
+    return (
+      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+        <div className="page-wrapper">
+          <div className="content">
+            <div className="text-center p-4">
+              <div className="spinner-border text-primary" role="status">
+                <span className="sr-only">Loading...</span>
+              </div>
+              <p>Loading user data...</p>
+            </div>
+          </div>
+        </div>
+      </Box>
+    );
+  }
 
   return (
     <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-      <div class="page-wrapper">
+      <div className="page-wrapper">
         <div className="content">
-
-          <div class="card-box">
+          <div className="card-box">
             <div className="row">
               <div className="col-lg-8 offset-lg-2">
                 <h3 className="page-title">Edit User</h3>
               </div>
             </div>
             <div className="row">
-
               <div className="col-lg-8 offset-lg-2">
                 <form id="addUserForm" name='addUserForm' onSubmit={updateUser}>
                   <div className="row">
                     <div className="col-sm-6">
                       <div className="form-group">
                         <label>First Name <span className="text-danger">*</span></label>
-                        <input name="firstName" className="form-control" type="text" required value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+                        <input 
+                          name="firstName" 
+                          className="form-control" 
+                          type="text" 
+                          required 
+                          value={firstName} 
+                          onChange={(event) => setFirstName(event.target.value)}
+                          disabled={isSubmitting}
+                        />
                       </div>
                     </div>
                     <div className="col-sm-6">
                       <div className="form-group">
                         <label>Last Name</label>
-                        <input name="lastName" className="form-control" type="text" required value={lastName} onChange={(event) => setLastName(event.target.value)} />
+                        <input 
+                          name="lastName" 
+                          className="form-control" 
+                          type="text" 
+                          required 
+                          value={lastName} 
+                          onChange={(event) => setLastName(event.target.value)}
+                          disabled={isSubmitting}
+                        />
                       </div>
                     </div>
                     <div className="col-sm-6">
                       <div className="form-group">
                         <label>Username <span className="text-danger">*</span></label>
-                        <input name="username" className="form-control" type="text" required value={username} onChange={(event) => setUsername(event.target.value)} />
+                        <input 
+                          name="username" 
+                          className="form-control" 
+                          type="text" 
+                          required 
+                          value={username} 
+                          onChange={(event) => setUsername(event.target.value)}
+                          disabled={isSubmitting}
+                        />
                       </div>
                     </div>
                     <div className="col-sm-6">
                       <div className="form-group">
                         <label>Email <span className="text-danger">*</span></label>
-                        <input name="email" className="form-control" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+                        <input 
+                          name="email" 
+                          className="form-control" 
+                          type="email" 
+                          required 
+                          value={email} 
+                          onChange={(event) => setEmail(event.target.value)}
+                          disabled={isSubmitting}
+                        />
                       </div>
                     </div>
                     <div className="col-sm-6">
                       <div className="form-group">
                         <label>Password</label>
-                        <input name="password" className="form-control" type="password" required value={password} onChange={(event) => setPassword(event.target.value)} />
+                        <input 
+                          name="password" 
+                          className="form-control" 
+                          type="password" 
+                          value={password} 
+                          onChange={(event) => setPassword(event.target.value)}
+                          disabled={isSubmitting}
+                        />
+                        {passwordValidationMessage && (
+                          <small className="text-danger">{passwordValidationMessage}</small>
+                        )}
                       </div>
                     </div>
                     <div className="col-sm-6">
                       <div className="form-group">
                         <label>Confirm Password</label>
-                        <input name="confirmPassword" className="form-control" type="password" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+                        <input 
+                          name="confirmPassword" 
+                          className="form-control" 
+                          type="password" 
+                          value={confirmPassword} 
+                          onChange={(event) => setConfirmPassword(event.target.value)}
+                          disabled={isSubmitting}
+                        />
+                        <small className="text-danger" style={{ display: passwordMatchDisplay }}>
+                          Passwords do not match
+                        </small>
                       </div>
                     </div>
 
                     <div className="col-sm-6">
                       <div className="form-group">
                         <label>Role</label>
-                        <select name="userType" className="form-select" value={userType} onChange={(event) => setUserType(event.target.value)}>
+                        <select 
+                          name="userType" 
+                          className="form-select" 
+                          value={userType} 
+                          onChange={(event) => setUserType(event.target.value)}
+                          disabled={isSubmitting}
+                          required
+                        >
+                          <option value="">Select Role</option>
                           <option value="Admin">Admin</option>
                           <option value="Doctor">Doctor</option>
                           <option value="Patient">Patient</option>
@@ -159,7 +278,13 @@ function EditUser() {
                   </div>
 
                   <div className="m-t-20 text-center">
-                    <button type="submit" className="btn btn-primary submit-btn">Update User</button>
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary submit-btn"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Updating...' : 'Update User'}
+                    </button>
                   </div>
                 </form>
               </div>

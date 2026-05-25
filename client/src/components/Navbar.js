@@ -1,10 +1,9 @@
-import React, { useState } from "react";
-
+import React from "react";
 
 function Navbar() {
     return (
-        <div> Place holder Navbar</div>
-    )
+        <div>Placeholder Navbar</div>
+    );
 }
 
 export default Navbar;

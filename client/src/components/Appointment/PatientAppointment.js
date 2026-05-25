@@ -1,398 +1,320 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useState, useContext } from 'react';
 import styles from './Appointment.module.css';
-import { useNavigate } from "react-router-dom";
 import ErrorDialogueBox from '../MUIDialogueBox/ErrorDialogueBox';
-import { UserContext } from '../../Context/UserContext'
+import { UserContext } from '../../Context/UserContext';
 import Box from '@mui/material/Box';
-// import DatePicker from '../Datepicker/DatePicker';
-import dayjs from 'dayjs';
-// import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-// import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-// import { StaticDatePicker } from '@mui/x-date-pickers/StaticDatePicker';
-// import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
-// import { DesktopDatePicker } from '@mui/x-date-pickers/DesktopDatePicker';
 import MyCalendar from '../Datepicker/MyCalendar';
-import moment from "moment"
 import axios from "axios";
-import { BootstrapDialog, BootstrapDialogTitle } from "../MUIDialogueBox/BoostrapDialogueBox"
+import { BootstrapDialog, BootstrapDialogTitle } from "../MUIDialogueBox/BoostrapDialogueBox";
 import DialogContent from '@mui/material/DialogContent';
-import AppointmentForm from '../Forms/AppointmentForm'
-import AppointmentTable from '../MUITable/AppointmentTable'
+import AppointmentForm from '../Forms/AppointmentForm';
+import AppointmentTable from '../MUITable/AppointmentTable';
+import useAppointments from '../../hooks/useAppointments';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 
 function PatientAppointment() {
-    const navigate = useNavigate();
-
-    //this tells you which slot was clicked among the "available slots"
+    const { currentUser } = useContext(UserContext);
     const [clickedTimeSlot, setClickedTimeSlot] = useState('');
+    const [openDialogueBox, setOpenDialogueBox] = useState(false);
+    const [errorDialogueBoxOpen, setErrorDialogueBoxOpen] = useState(false);
+    const [errorList, setErrorList] = useState([]);
+    const [successSnackbar, setSuccessSnackbar] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+    const [bookingLoading, setBookingLoading] = useState(false);
 
-    // const [dateClicked,setDateClicked] = useState(dayjs());
-    const [date, setDate] = useState(new Date());
-    const [availableSlots, setAvailableSlots] = useState([])
-    const [bookedSlots, setBookedSlots] = useState([])
-    const [bookedAppointments, setBookedAppointments] = useState([])
+    const {
+        date,
+        setDate,
+        availableSlots,
+        bookedAppointments,
+        departmentList,
+        doctorList,
+        patientList,
+        departmentSelected,
+        setDepartmentSelected,
+        doctorSelected,
+        setDoctorSelected,
+        getAvailableSlots,
+        getBookedSlots,
+        deleteBookedSlots,
+        formatDateForDateInput,
+        getformDate,
+        loading
+    } = useAppointments('patient');
 
+    const handleErrorDialogueClose = () => {
+        setErrorList([]);
+        setErrorDialogueBoxOpen(false);
+    };
 
-    const [departmentList, setDepartmentList] = useState([]);
-    const [doctorList, setDoctorList] = useState([]);
-    const [patientList, setPatientList] = useState([]);
+    const handleSuccessSnackbarClose = () => {
+        setSuccessSnackbar(false);
+        setSuccessMessage('');
+    };
 
-
-    const [departmentSelected, setDepartmentSelected] = useState("");
-    const [doctorSelected, setDoctorSelected] = useState("");
+    const handleClickOpen = () => setOpenDialogueBox(true);
+    const handleClose = () => {
+        setOpenDialogueBox(false);
+        setClickedTimeSlot('');
+    };
 
     const handleDepartmentChange = (event) => {
         setDepartmentSelected(event.target.value);
         setDoctorSelected("");
     };
+
     const handleDoctorChange = (event) => {
         setDoctorSelected(event.target.value);
     };
 
-
-    const [errorDialogueBoxOpen, setErrorDialogueBoxOpen] = useState(false);
-    const [errorList, setErrorList] = useState([]);
-    const handleErrorDialogueOpen = () => {
-        setErrorDialogueBoxOpen(true)
-    };
-    const handleErrorDialogueClose = () => {
-        setErrorList([]);
-        setErrorDialogueBoxOpen(false)
-    };
-
-    const [openDialgueBox, setOpenDialgueBox] = React.useState(false);
-
-    //fhandler function for bootstrap dialogue box 
-    const handleClickOpen = () => {
-        setOpenDialgueBox(true);
-    };
-    const handleClose = () => {
-        setOpenDialgueBox(false);
-    };
-
     const addAppointmentFormSubmitted = async (event) => {
         event.preventDefault();
+        
+        console.log("=== BOOKING BUTTON CLICKED ===");
+        
         const form = document.forms.addAppointment;
+        
+        if (!form) {
+            console.error("Form 'addAppointment' not found!");
+            setErrorList(["Form not found. Please refresh the page."]);
+            setErrorDialogueBoxOpen(true);
+            return;
+        }
+        
+        console.log("Form values:", {
+            appDate: form.appDate?.value,
+            appTime: form.appTime?.value,
+            doctor: form.doctor?.value,
+            patient: form.patient?.value
+        });
+        
+        // Validate form data
+        if (!form.doctor?.value) {
+            console.log("Validation failed: No doctor selected");
+            setErrorList(["Please select a doctor"]);
+            setErrorDialogueBoxOpen(true);
+            return;
+        }
+        
+        if (!form.appTime?.value) {
+            console.log("Validation failed: No time slot selected");
+            setErrorList(["Please select a time slot"]);
+            setErrorDialogueBoxOpen(true);
+            return;
+        }
+        
+        // Get patient ID - try multiple possible locations
+        const patientId = currentUser?.patientId || currentUser?._id || currentUser?.userId;
+        console.log("Current user:", currentUser);
+        console.log("Patient ID being used:", patientId);
+        
+        if (!patientId) {
+            console.log("Validation failed: No patient ID found");
+            setErrorList(["Patient information not found. Please login again."]);
+            setErrorDialogueBoxOpen(true);
+            return;
+        }
+        
         let reqObj = {
             "appDate": form.appDate.value,
             "appTime": form.appTime.value,
             "doctorId": form.doctor.value,
-            "patientId": form.patient.value
-        }
-        // console.log("reqObj",reqObj);
-
-        let response = await axios.put(`http://localhost:3001/api/appointments/`,
-            reqObj,
-            {
+            "patientId": patientId
+        };
+        
+        console.log("Request object:", reqObj);
+        console.log("Token present:", !!localStorage.getItem("token"));
+        
+        setBookingLoading(true);
+        
+        try {
+            console.log("Making API call to: http://localhost:3001/appointments/");
+            
+            const response = await axios.put(`http://localhost:3001/appointments/`, reqObj, {
                 headers: {
-                    authorization: `Bearer ${localStorage.getItem("token")}`
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem("token")}`
                 }
+            });
+            
+            console.log("Response status:", response.status);
+            console.log("Response data:", response.data);
+            
+            if (response.data.message === "success") {
+                console.log("SUCCESS: Appointment booked!");
+                await Promise.all([getAvailableSlots(), getBookedSlots()]);
+                handleClose();
+                setSuccessMessage("Appointment booked successfully!");
+                setSuccessSnackbar(true);
+            } else {
+                console.log("API returned error:", response.data.message);
+                setErrorList([response.data.message || "Failed to book appointment"]);
+                setErrorDialogueBoxOpen(true);
             }
-        );
-        if (response.data.message == "success") {
-            // getAvailableSlot();
-            // window.alert("success add")
-            getAvailableSlots();
-            getBookedSlots();
-        }
-
-        handleClose();
-
-
-    }
-
-    const getformDate = (mydate) => {
-        const parts = mydate.split('-');
-        const d = new Date(+parts[0], parts[1] - 1, +parts[2], 12);
-        return d;
-    }
-
-    const formatDateForDateInput = (dateOfJoining) => {
-        dateOfJoining = moment(new Date(dateOfJoining)).format('YYYY-MM-DD');
-        // console.log("dateOfJoining",dateOfJoining);
-        return dateOfJoining;
-    }
-
-    const slotClicked = (slot) => {
-        // console.log(slot)
-        setClickedTimeSlot(slot)
-        handleClickOpen()
-    }
-
-    const getAvailableSlots = async () => {
-        // let newSlotList = availableSlots;
-        // newSlotList[newSlotList.length] = "hello"
-        // setAvailableSlots(newSlotList);
-        if (doctorSelected) {
-            let response = await axios.post(`http://localhost:3001/appointments`,
-                {
-                    'isTimeSlotAvailable': true,
-                    'appDate': formatDateForDateInput(date),
-                    'doctorID': doctorSelected
-                },
-                {
-                    headers: {
-                        authorization: `Bearer ${localStorage.getItem("token")}`
-                    }
+        } catch (error) {
+            console.error("=== ERROR IN API CALL ===");
+            console.error("Error details:", error);
+            
+            if (error.response) {
+                console.error("Error status:", error.response.status);
+                console.error("Error data:", error.response.data);
+                
+                let errorMsg = "Failed to book appointment";
+                if (error.response.data?.message) {
+                    errorMsg = error.response.data.message;
+                } else if (error.response.data?.errors?.length > 0) {
+                    errorMsg = error.response.data.errors[0];
+                } else if (error.response.status === 401) {
+                    errorMsg = "Session expired. Please login again.";
+                } else if (error.response.status === 404) {
+                    errorMsg = "Backend endpoint not found. Please check if server is running.";
+                } else if (error.response.status === 500) {
+                    errorMsg = "Server error. Please check backend console.";
                 }
-            );
-            if (response.data.message == "success") {
-                // getAvailableSlot();
-                // window.alert("success add")
-                // setAvailableSlot(response.data.appointments)
-                let aptms = response.data.appointments;
-
-                let slots = aptms.map(apt =>
-                    apt.appointmentTime
-                )
-                slots.sort((a, b) => {
-                    const timeA = new Date(`01/01/2000 ${a}`);
-                    const timeB = new Date(`01/01/2000 ${b}`);
-                    return timeA - timeB;
-                });
-
-                setAvailableSlots(slots);
+                
+                setErrorList([errorMsg]);
+            } else if (error.request) {
+                console.error("No response received");
+                setErrorList(["Cannot connect to server. Please check if backend is running on port 3001"]);
+            } else {
+                console.error("Error message:", error.message);
+                setErrorList([error.message || "An error occurred while booking the appointment"]);
             }
-            else {
-                // window.alert("error add")
-            }
+            setErrorDialogueBoxOpen(true);
+        } finally {
+            setBookingLoading(false);
+            console.log("=== BOOKING PROCESS COMPLETED ===");
         }
-        else {
-            setAvailableSlots([]);
-        }
-
-    }
-
-    const getBookedSlots = async () => {
-        // let newSlotList = availableSlots;
-        // newSlotList[newSlotList.length] = "hello"
-        // setAvailableSlots(newSlotList);
-        if (doctorSelected) {
-            let response = await axios.post(`http://localhost:3001/appointments`,
-                {
-                    'isTimeSlotAvailable': false,
-                    'appDate': formatDateForDateInput(date),
-                    'doctorID': doctorSelected
-                },
-                {
-                    headers: {
-                        authorization: `Bearer ${localStorage.getItem("token")}`
-                    }
-                }
-            );
-            if (response.data.message == "success") {
-                // getAvailableSlot();
-                // window.alert("success add")
-                // setAvailableSlot(response.data.appointments)
-                let aptms = response.data.appointments;
-                // console.log("aptms", aptms);
-                let sortedAptms = aptms.sort((a, b) => {
-                    const timeA = new Date(`01/01/2000 ${a['appointmentTime']}`);
-                    const timeB = new Date(`01/01/2000 ${b["appointmentTime"]}`);
-                    return timeA - timeB;
-                });
-
-                setBookedAppointments(sortedAptms);
-                console.log(aptms)
-                let slots = aptms.map(apt =>
-                    apt.appointmentTime
-                )
-                slots.sort((a, b) => {
-                    const timeA = new Date(`01/01/2000 ${a}`);
-                    const timeB = new Date(`01/01/2000 ${b}`);
-                    return timeA - timeB;
-                });
-
-                setBookedSlots(slots);
-            }
-            else {
-                // window.alert("error add")
-            }
-        }
-        else {
-            setBookedSlots([]);
-            setBookedAppointments([]);
-        }
-
-    }
-
-    const deleteBookedSlots = async (appId) => {
-        console.log("delete slot with id", appId);
-        let response = await axios.delete(`http://localhost:3001/appointments/`,
-            {
-                headers: {
-                    authorization: `Bearer ${localStorage.getItem("token")}`,
-                },
-                data: {
-                    appointmentId: appId,
-                },
-            }
-        );
-        if (response.data.message == "success") {
-            // getAvailableSlot();
-            // window.alert("success add")
-            getAvailableSlots();
-            getBookedSlots();
-        }
-    }
-
-    const getDoctorList = async () => {
-        let response = await axios.get(`http://localhost:3001/doctors`,
-            {
-                headers: {
-                    authorization: `Bearer ${localStorage.getItem("token")}`
-                }
-            }
-        );
-        let doctors = response.data;
-        if (doctors.length > 0) {
-            // getAvailableSlot();
-            // window.alert("success add")
-            // setAvailableSlot(response.data.appointments)
-            // console.log("++++",doctors);
-            // doctors.sort(function(a, b){
-            //     return a.zzz - b.id;
-            // });
-            if (!departmentSelected) {
-                setDoctorList(doctors);
-            }
-            else {
-                // setDoctorList([]);
-                let filterdDocs = doctors.filter((doc) => {
-                    return doc.department == departmentSelected;
-                })
-                setDoctorList(filterdDocs);
-            }
-
-        }
-        else {
-            // window.alert("error add")
-        }
-
-    }
-
-    const getDepartmentList = async () => {
-        let response = await axios.get(`http://localhost:3001/departments`,
-            {
-                headers: {
-                    authorization: `Bearer ${localStorage.getItem("token")}`
-                }
-            }
-        );
-        let departments = response.data.departments;
-        if (departments.length > 0) {
-
-            setDepartmentList(departments);
-        }
-        else {
-            // window.alert("error add")
-        }
-
-    }
-
-    const getPatients = async () => {
-        const response = await axios.get("http://localhost:3001/patients");
-        setPatientList(response.data);
     };
 
-    useEffect(() => {
-        getDepartmentList()
-        getDoctorList()
-        getAvailableSlots()
-        getBookedSlots()
-        getPatients()
-
-    }, [date, departmentSelected, doctorSelected])
-
-
+    const slotClicked = (slot) => {
+        console.log("Slot clicked:", slot);
+        if (!doctorSelected) {
+            setErrorList(["Please select a doctor first"]);
+            setErrorDialogueBoxOpen(true);
+            return;
+        }
+        setClickedTimeSlot(slot);
+        handleClickOpen();
+    };
 
     return (
         <Box id={styles.appointmentMain} component="main" sx={{ flexGrow: 1, p: 3 }}>
             <div>
-                <h3 className={styles.pageTitle}> Appointments</h3>
+                <h3 className={styles.pageTitle}>Book an Appointment</h3>
+                <p className="text-muted">Schedule your visit with our expert doctors</p>
             </div>
 
             <div id={styles.slotGrid}>
                 <div id={styles.calendarDiv}>
                     <MyCalendar date={date} setDate={setDate} />
                 </div>
+                
                 <div id={styles.slotCreationDiv}>
-                    <h4>Select Date and Doctor</h4>
-                    <div className='my-4 row'>
-                        <div className='col-12'>
-                            <label for="department" className="col-sm-3 col-form-label ">Department: </label>
-                            <select name="department" id="department" class="col-form-select col-sm-7" aria-label="Default select example" onChange={handleDepartmentChange}>
-                                <option selected value=''>All</option>
-                                {
-                                    departmentList.map(sp => {
-                                        return <option value={sp}>{sp}</option>
-                                    })
-                                }
-                            </select>
-                        </div>
-
-
+                    <div className="patient-info-card mb-4">
+                        <h4>Welcome, {currentUser?.firstName} {currentUser?.lastName}</h4>
+                        <p>Select a department, doctor, and time slot to book your appointment</p>
                     </div>
+                    
                     <div className='my-4 row'>
-
                         <div className='col-12'>
-                            <label for="doctor" className="col-sm-3 col-form-label ">Doctor: </label>
-                            <select name="doctor" id="doctor" class="col-form-select col-sm-7" aria-label="Default select example" required
-                                onChange={handleDoctorChange}
+                            <label htmlFor="department" className="col-sm-3 col-form-label fw-bold">Department: </label>
+                            <select 
+                                name="department" 
+                                id="department" 
+                                className="col-form-select col-sm-7" 
+                                aria-label="Select department" 
+                                onChange={handleDepartmentChange}
+                                value={departmentSelected}
                             >
-                                <option value=''>Choose Doctor</option>
-                                {
-                                    doctorList.map(doctor => {
-                                        if (doctorSelected == doctor._id) {
-                                            return <option value={doctor._id} selected>{doctor.userId.firstName} {doctor.userId.lastName}</option>
-                                        }
-                                        else {
-                                            return <option value={doctor._id} >{doctor.userId.firstName} {doctor.userId.lastName}</option>
-                                        }
-
-                                    })
-                                }
+                                <option value=''>Select Department</option>
+                                {departmentList.map(sp => (
+                                    <option key={sp} value={sp}>{sp}</option>
+                                ))}
                             </select>
                         </div>
-
                     </div>
+
+                    <div className='my-4 row'>
+                        <div className='col-12'>
+                            <label htmlFor="doctor" className="col-sm-3 col-form-label fw-bold">Doctor: </label>
+                            <select 
+                                name="doctor" 
+                                id="doctor" 
+                                className="col-form-select col-sm-7" 
+                                aria-label="Select doctor" 
+                                required
+                                onChange={handleDoctorChange}
+                                value={doctorSelected}
+                                disabled={!departmentSelected}
+                            >
+                                <option value=''>Select Doctor</option>
+                                {doctorList.map(doctor => (
+                                    <option key={doctor._id} value={doctor._id}>
+                                        Dr. {doctor.userId?.firstName} {doctor.userId?.lastName} - {doctor.department}
+                                    </option>
+                                ))}
+                            </select>
+                            {!departmentSelected && (
+                                <small className="text-muted d-block mt-2">Please select a department first</small>
+                            )}
+                        </div>
+                    </div>
+
                     <div className='mt-4 row'>
                         <div className="col-12">
-                            <label for="appDate" className="col-sm-3 col-form-label ">Date: </label>
-                            <input id="appDate" name="appDate" type="date" className="col-form-control col-sm-7"
+                            <label htmlFor="appDate" className="col-sm-3 col-form-label fw-bold">Date: </label>
+                            <input 
+                                id="appDate" 
+                                name="appDate" 
+                                type="date" 
+                                className="col-form-control col-sm-7"
                                 value={formatDateForDateInput(date)}
                                 onChange={(e) => setDate(getformDate(e.target.value))}
+                                min={formatDateForDateInput(new Date())}
                             />
                         </div>
-
-                    </div>
-                    <div className=' row'>
-                        {/* <div className="col-12"> */}
-
-                        {/* </div> */}
-                        {availableSlots.length > 0 ? <div className={styles.availableSlotsHeader}> <h4 className="mt-5">Available Slots</h4> <p>Click a slot to book appointments</p></div> : <div></div>}
-
-                        <div className='d-flex flex-wrap'>
-                            {
-                                availableSlots.map(slot => {
-                                    return <div onClick={() => slotClicked(slot)} className={styles.slotCard}>{slot}</div>
-                                })
-                            }
-                        </div>
                     </div>
 
-
-
+                    <div className='row mt-4'>
+                        {availableSlots.length > 0 && (
+                            <div className={styles.availableSlotsHeader}>
+                                <h4 className="mt-3">Available Time Slots</h4>
+                                <p>Click on any slot to book your appointment</p>
+                                <div className='d-flex flex-wrap'>
+                                    {loading ? (
+                                        <p>Loading available slots...</p>
+                                    ) : (
+                                        availableSlots.map(slot => (
+                                            <div key={slot} onClick={() => slotClicked(slot)} className={styles.slotCard}>
+                                                {slot}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {!loading && doctorSelected && availableSlots.length === 0 && (
+                            <div className="alert alert-warning mt-3">
+                                <i className="fa fa-exclamation-triangle"></i> No available slots for the selected doctor and date. Please try another date.
+                            </div>
+                        )}
+                        
+                        {!loading && !doctorSelected && (
+                            <div className="alert alert-info mt-3">
+                                <i className="fa fa-info-circle"></i> Please select a doctor to view available time slots.
+                            </div>
+                        )}
+                    </div>
                 </div>
-
             </div>
 
-
-
-            {bookedAppointments.length > 0 ?
+            {bookedAppointments.length > 0 && (
                 <div className={styles.availableSlotsHeader}>
-                    <h4 className="mt-5">
-                        Booked Appointments
-                    </h4>
+                    <h4 className="mt-5">My Upcoming Appointments</h4>
                     <AppointmentTable
                         bookedAppointments={bookedAppointments}
                         deleteBookedSlots={deleteBookedSlots}
@@ -402,35 +324,49 @@ function PatientAppointment() {
                         getAvailableSlots={getAvailableSlots}
                         getBookedSlots={getBookedSlots}
                     />
-                </div> : <div></div>}
-
-
-
+                </div>
+            )}
 
             <ErrorDialogueBox
                 open={errorDialogueBoxOpen}
                 handleToClose={handleErrorDialogueClose}
-                ErrorTitle="Error"
+                ErrorTitle="Booking Error"
                 ErrorList={errorList}
             />
-            <BootstrapDialog
-                onClose={handleClose}
-                aria-labelledby="customized-dialog-title"
-                open={openDialgueBox}
+
+            <Snackbar
+                open={successSnackbar}
+                autoHideDuration={3000}
+                onClose={handleSuccessSnackbarClose}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             >
-                <BootstrapDialogTitle id="customized-dialog-title" onClose={handleClose}>
-                    Book Appointment
+                <Alert onClose={handleSuccessSnackbarClose} severity="success" sx={{ width: '100%' }}>
+                    {successMessage}
+                </Alert>
+            </Snackbar>
+
+            <BootstrapDialog onClose={handleClose} open={openDialogueBox} maxWidth="md" fullWidth>
+                <BootstrapDialogTitle onClose={handleClose}>
+                    Confirm Appointment Booking
                 </BootstrapDialogTitle>
                 <DialogContent dividers>
-                    <AppointmentForm
-                        formName="addAppointment"
-                        formOnSubmit={addAppointmentFormSubmitted}
-                        appDate={formatDateForDateInput(date)}
-                        appTime={clickedTimeSlot}
-                        doctorList={doctorList}
-                        doctorSelected={doctorSelected}
-                        patientList={patientList}
-                        availableSlots={availableSlots} />
+                    {bookingLoading ? (
+                        <div style={{ textAlign: 'center', padding: '40px' }}>
+                            <CircularProgress />
+                            <p style={{ marginTop: '20px' }}>Booking your appointment...</p>
+                        </div>
+                    ) : (
+                        <AppointmentForm
+                            formName="addAppointment"
+                            formOnSubmit={addAppointmentFormSubmitted}
+                            appDate={formatDateForDateInput(date)}
+                            appTime={clickedTimeSlot}
+                            doctorList={doctorList}
+                            doctorSelected={doctorSelected}
+                            patientList={patientList}
+                            availableSlots={availableSlots}
+                        />
+                    )}
                 </DialogContent>
             </BootstrapDialog>
         </Box>
