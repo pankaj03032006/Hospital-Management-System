@@ -60,7 +60,7 @@ function LoginPage() {
       console.log("Attempting login...");
 
       const response = await fetch(
-        'http://localhost:3001/login',
+        'https://hospital-management-system-2-dni5.onrender.com/login',
         {
           method: "POST",
           headers: {

@@ -72,7 +72,7 @@ function PrescriptionForm(props) {
 
     const getMedicines = async () => {
         try {
-            const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/medicines`, {
+            const response = await axios.get(`${process.env.REACT_APP_API_URL || 'https://hospital-management-system-2-dni5.onrender.com'}/medicines`, {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }

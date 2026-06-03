@@ -20,7 +20,7 @@ export default function AdminDashboard() {
 	const { currentUser } = useContext(UserContext);
 
 	const getUserCountByRole = async (userType) => {
-		const response = await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/count/users`,
+		const response = await axios.post(`${process.env.REACT_APP_API_URL || 'https://hospital-management-system-2-dni5.onrender.com'}/count/users`,
 			{
 				'userType': userType
 			},
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
 	};
 
 	const getAppointmentCount = async () => {
-		const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/count/appointments`,
+		const response = await axios.get(`${process.env.REACT_APP_API_URL || 'https://hospital-management-system-2-dni5.onrender.com'}/count/appointments`,
 			{
 				headers: {
 					authorization: `Bearer ${localStorage.getItem("token")}`
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
 	}
 
 	const getBookedSlots = async () => {
-		let response = await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/appointments`,
+		let response = await axios.post(`${process.env.REACT_APP_API_URL || 'https://hospital-management-system-2-dni5.onrender.com'}/appointments`,
 			{
 				'isTimeSlotAvailable': false,
 				'appDate': moment(new Date()).format('YYYY-MM-DD')
@@ -77,13 +77,13 @@ export default function AdminDashboard() {
 	}
 
 	const getdoctors = async () => {
-		const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/doctors`);
+		const response = await axios.get(`${process.env.REACT_APP_API_URL || 'https://hospital-management-system-2-dni5.onrender.com'}/doctors`);
 		setdoctor(response.data);
 	};
 
 	const getRecentPrescriptions = async () => {
 		try {
-			const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/prescriptions`, {
+			const response = await axios.get(`${process.env.REACT_APP_API_URL || 'https://hospital-management-system-2-dni5.onrender.com'}/prescriptions`, {
 				headers: {
 					authorization: `Bearer ${localStorage.getItem("token")}`
 				}
@@ -98,7 +98,7 @@ export default function AdminDashboard() {
 
 	const getMedicineStats = async () => {
 		try {
-			const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/medicines`, {
+			const response = await axios.get(`${process.env.REACT_APP_API_URL || 'https://hospital-management-system-2-dni5.onrender.com'}/medicines`, {
 				headers: {
 					authorization: `Bearer ${localStorage.getItem("token")}`
 				}

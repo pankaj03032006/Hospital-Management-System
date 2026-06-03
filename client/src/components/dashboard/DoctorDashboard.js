@@ -52,7 +52,7 @@ export default function DoctorDashboard() {
     try {
 
       const response = await axios.get(
-        `http://localhost:3001/count/appointments`,
+        `https://hospital-management-system-2-dni5.onrender.com/count/appointments`,
         {
           headers: {
             authorization: `Bearer ${localStorage.getItem("token")}`
@@ -82,7 +82,7 @@ export default function DoctorDashboard() {
     try {
 
       const response = await axios.get(
-        `http://localhost:3001/count/patients/treated`,
+        `https://hospital-management-system-2-dni5.onrender.com/count/patients/treated`,
         {
           headers: {
             authorization: `Bearer ${localStorage.getItem("token")}`
@@ -108,7 +108,7 @@ export default function DoctorDashboard() {
     try {
 
       let response = await axios.post(
-        `http://localhost:3001/appointments`,
+        `https://hospital-management-system-2-dni5.onrender.com/appointments`,
         {
           isTimeSlotAvailable: false,
           appDate: moment(new Date()).format('YYYY-MM-DD')
@@ -141,7 +141,7 @@ export default function DoctorDashboard() {
     try {
 
       let response = await axios.post(
-        `http://localhost:3001/prescriptions`,
+        `https://hospital-management-system-2-dni5.onrender.com/prescriptions`,
         {},
         {
           headers: {

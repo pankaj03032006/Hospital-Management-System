@@ -56,7 +56,7 @@ function DoctorAppointment() {
         setPrescriptionLoading(true);
         
         try {
-            const response = await axios.post('http://localhost:3001/prescriptions', prescriptionData, {
+            const response = await axios.post('https://hospital-management-system-2-dni5.onrender.com/prescriptions', prescriptionData, {
                 headers: {
                     'Content-Type': 'application/json',
                     authorization: `Bearer ${localStorage.getItem('token')}`

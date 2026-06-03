@@ -27,7 +27,7 @@ function UserList() {
     const getUsers = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await axios.get("http://localhost:3001/users", {
+            const response = await axios.get("https://hospital-management-system-2-dni5.onrender.com/users", {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 },
@@ -60,7 +60,7 @@ function UserList() {
         }
 
         try {
-            await axios.delete(`http://localhost:3001/users/${id}`, {
+            await axios.delete(`https://hospital-management-system-2-dni5.onrender.com/users/${id}`, {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }

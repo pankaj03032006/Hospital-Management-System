@@ -91,7 +91,7 @@ const sendVerificationEmail = async (email, token) => {
             }
         });
 
-        const verificationLink = `http://localhost:3001/verify/${token}`;
+        const verificationLink = `https://hospital-management-system-2-dni5.onrender.com/verify/${token}`;
         
         const mailOptions = {
             from: process.env.GMAIL_USER,

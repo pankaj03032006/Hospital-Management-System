@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ErrorDialogueBox from '../MUIDialogueBox/ErrorDialogueBox';
 import Box from '@mui/material/Box';
@@ -62,7 +62,7 @@ function AddUser() {
     };
     
     try {
-      const response = await fetch('http://localhost:3001/users', {
+      const response = await fetch('https://hospital-management-system-2-dni5.onrender.com/users', {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',

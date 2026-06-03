@@ -114,7 +114,7 @@ function Adddoctor() {
 
     try {
       // CHANGED: Back to port 3001 (where your backend actually runs)
-      const API_URL = 'http://localhost:3001/doctors';
+      const API_URL = 'https://hospital-management-system-2-dni5.onrender.com/doctors';
       console.log('Sending POST request to:', API_URL);
       console.log('Doctor data:', doctor);
       

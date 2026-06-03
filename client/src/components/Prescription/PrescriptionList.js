@@ -31,7 +31,7 @@ function PrescriptionList() {
 
     const getPatients = useCallback(async () => {
         try {
-            const response = await axios.get("http://localhost:3001/patients", {
+            const response = await axios.get("https://hospital-management-system-2-dni5.onrender.com/patients", {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }
@@ -46,7 +46,7 @@ function PrescriptionList() {
 
     const getDoctors = useCallback(async () => {
         try {
-            const response = await axios.get("http://localhost:3001/doctors", {
+            const response = await axios.get("https://hospital-management-system-2-dni5.onrender.com/doctors", {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }
@@ -78,7 +78,7 @@ function PrescriptionList() {
         setLoading(true);
         
         try {
-            let response = await axios.post(`http://localhost:3001/prescriptions`, reqObj,
+            let response = await axios.post(`https://hospital-management-system-2-dni5.onrender.com/prescriptions`, reqObj,
                 {
                     headers: {
                         authorization: `Bearer ${localStorage.getItem("token")}`

@@ -45,7 +45,7 @@ const useAppointments = (role, doctorId = null) => {
                 return;
             }
 
-            const response = await axios.post(`http://localhost:3001/appointments`, requestBody, {
+            const response = await axios.post(`https://hospital-management-system-2-dni5.onrender.com/appointments`, requestBody, {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }
@@ -91,7 +91,7 @@ const useAppointments = (role, doctorId = null) => {
                 return;
             }
 
-            const response = await axios.post(`http://localhost:3001/appointments`, requestBody, {
+            const response = await axios.post(`https://hospital-management-system-2-dni5.onrender.com/appointments`, requestBody, {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }
@@ -134,7 +134,7 @@ const useAppointments = (role, doctorId = null) => {
         }
 
         try {
-            const response = await axios.delete(`http://localhost:3001/appointments/`, {
+            const response = await axios.delete(`https://hospital-management-system-2-dni5.onrender.com/appointments/`, {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`,
                 },
@@ -156,7 +156,7 @@ const useAppointments = (role, doctorId = null) => {
 
     const getDoctorList = useCallback(async () => {
         try {
-            const response = await axios.get(`http://localhost:3001/doctors`, {
+            const response = await axios.get(`https://hospital-management-system-2-dni5.onrender.com/doctors`, {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }
@@ -183,7 +183,7 @@ const useAppointments = (role, doctorId = null) => {
 
     const getDepartmentList = useCallback(async () => {
         try {
-            const response = await axios.get(`http://localhost:3001/departments`, {
+            const response = await axios.get(`https://hospital-management-system-2-dni5.onrender.com/departments`, {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }
@@ -203,7 +203,7 @@ const useAppointments = (role, doctorId = null) => {
 
     const getPatients = useCallback(async () => {
         try {
-            const response = await axios.get("http://localhost:3001/patients", {
+            const response = await axios.get("https://hospital-management-system-2-dni5.onrender.com/patients", {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }

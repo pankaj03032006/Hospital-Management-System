@@ -103,7 +103,7 @@ function SignupPage() {
     try {
       console.log('Sending user data:', user);
       
-      const response = await fetch('http://localhost:3001/signup', {
+      const response = await fetch('https://hospital-management-system-2-dni5.onrender.com/signup', {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',

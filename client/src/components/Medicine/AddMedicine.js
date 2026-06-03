@@ -203,7 +203,7 @@ function Addmedicine() {
         totalValue: parseFloat(price) * parseInt(quantity)
       };
       
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/medicines`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://hospital-management-system-2-dni5.onrender.com'}/medicines`, {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',

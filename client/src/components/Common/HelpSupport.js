@@ -48,7 +48,7 @@ export default function HelpSupport() {
         e.preventDefault();
         setLoading(true);
         try {
-            await axios.post('http://localhost:3001/support', { subject, message });
+            await axios.post('https://hospital-management-system-2-dni5.onrender.com/support', { subject, message });
             setSubmitted(true);
             setSubject('');
             setMessage('');

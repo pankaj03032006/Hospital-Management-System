@@ -117,7 +117,7 @@ export default function DoctorAppointmentTable({
             };
             
             const response = await axios.post(
-                `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/prescriptions`,
+                `${process.env.REACT_APP_API_URL || 'https://hospital-management-system-2-dni5.onrender.com'}/prescriptions`,
                 reqObj,
                 {
                     headers: {

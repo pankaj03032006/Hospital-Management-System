@@ -21,7 +21,7 @@ export default function MyPatients() {
     useEffect(() => {
         const fetchPatients = async () => {
             try {
-                const response = await axios.get('http://localhost:3001/doctor/patients', {
+                const response = await axios.get('https://hospital-management-system-2-dni5.onrender.com/doctor/patients', {
                     headers: {
                         authorization: `Bearer ${localStorage.getItem('token')}`
                     }
