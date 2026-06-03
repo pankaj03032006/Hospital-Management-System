@@ -12,7 +12,7 @@ import {
   getAllMedicines, 
   medicineBrands, 
   getMedicinesByBrand,
-  getMedicineBasePrice 
+  // getMedicineBasePrice 
 } from '../../utils/medicinesData';
 import { 
   calculateTieredPrice, 
@@ -37,7 +37,7 @@ function Editmedicine() {
   const [successSnackbar, setSuccessSnackbar] = useState(false);
   const [showPricingDetails, setShowPricingDetails] = useState(false);
   
-  const [medicinesList, setMedicinesList] = useState([]);
+  // const [medicinesList, setMedicinesList] = useState([]);
   const [filteredMedicines, setFilteredMedicines] = useState([]);
   const [brandsList] = useState(medicineBrands);
   
@@ -56,7 +56,7 @@ function Editmedicine() {
   // Load all medicines on component mount
   useEffect(() => {
     const medicines = getAllMedicines();
-    setMedicinesList(medicines);
+    // setMedicinesList(medicines);
     setFilteredMedicines(medicines);
   }, []);
 

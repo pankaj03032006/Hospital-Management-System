@@ -7,14 +7,14 @@ import { UserContext } from '../../Context/UserContext';
 import moment from 'moment';
 
 function PrescriptionList() {
-    const { currentUser } = useContext(UserContext);
+    // const { currentUser } = useContext(UserContext);
     const params = useMemo(() => new URLSearchParams(window.location.search), []);
 
     const [prescriptions, setPrescription] = useState([]);
-    const [patientList, setPatientList] = useState([]);
-    const [doctorList, setDoctorList] = useState([]);
-    const [patientSelected, setPatientSelected] = useState("");
-    const [doctorSelected, setDoctorSelected] = useState("");
+    // const [patientList, setPatientList] = useState([]);
+    // const [doctorList, setDoctorList] = useState([]);
+    // const [patientSelected, setPatientSelected] = useState("");
+    // const [doctorSelected, setDoctorSelected] = useState("");
     const [loading, setLoading] = useState(false);
 
     const [errorDialogueBoxOpen, setErrorDialogueBoxOpen] = useState(false);
@@ -36,7 +36,7 @@ function PrescriptionList() {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }
             });
-            setPatientList(response.data);
+            // setPatientList(response.data);
         } catch (error) {
             const errorMessage = error.response?.data?.message || error.message || "Failed to fetch patients";
             setErrorList([errorMessage]);
@@ -51,7 +51,7 @@ function PrescriptionList() {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }
             });
-            setDoctorList(response.data);
+            // setDoctorList(response.data);
         } catch (error) {
             const errorMessage = error.response?.data?.message || error.message || "Failed to fetch doctors";
             setErrorList([errorMessage]);
@@ -66,12 +66,12 @@ function PrescriptionList() {
         let reqObj = {};
         
         if (doctorId) {
-            setDoctorSelected(doctorId);
+            // setDoctorSelected(doctorId);
             reqObj.doctorId = doctorId;
         }
 
         if (patientId) {
-            setPatientSelected(patientId);
+            // setPatientSelected(patientId);
             reqObj.patientId = patientId;
         }
         

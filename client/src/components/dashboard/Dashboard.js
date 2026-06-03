@@ -1,10 +1,10 @@
 import Header from "../Layout/Header/Header";
 import Sidebar from "../Layout/Sidebar/Sidebar";
-import styles from './Dashboard.module.css';
+// import styles from './Dashboard.module.css';
 
 import React, { useContext, useEffect, useState } from 'react';
 
-import { styled } from '@mui/material/styles';
+ import { styled } from '@mui/material/styles';
 
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -13,7 +13,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 
 import { UserContext } from '../../Context/UserContext';
 
-const drawerWidth = 240;
+// const drawerWidth = 240;
 
 const DrawerHeader = styled('div')(({ theme }) => ({
     display: 'flex',

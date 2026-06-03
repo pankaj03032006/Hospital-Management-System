@@ -11,7 +11,7 @@ import {
   getAllMedicines, 
   medicineBrands, 
   getMedicinesByBrand,
-  getMedicineBasePrice 
+  // getMedicineBasePrice 
 } from '../../utils/medicinesData';
 import { 
   calculateTieredPrice, 
@@ -34,10 +34,10 @@ function Addmedicine() {
   const [successSnackbar, setSuccessSnackbar] = useState(false);
   const [showPricingDetails, setShowPricingDetails] = useState(false);
   
-  const [medicinesList, setMedicinesList] = useState([]);
+  // const [medicinesList, setMedicinesList] = useState([]);
   const [filteredMedicines, setFilteredMedicines] = useState([]);
   const [brandsList] = useState(medicineBrands);
-  const [allMedicines, setAllMedicines] = useState([]);
+  // const [allMedicines, setAllMedicines] = useState([]);
   
   const [errorDialogueBoxOpen, setErrorDialogueBoxOpen] = useState(false);
   const [errorList, setErrorList] = useState([]);
@@ -45,8 +45,8 @@ function Addmedicine() {
   // Load all medicines on component mount
   useEffect(() => {
     const medicines = getAllMedicines();
-    setAllMedicines(medicines);
-    setMedicinesList(medicines);
+    // setAllMedicines(medicines);
+    // setMedicinesList(medicines);
     setFilteredMedicines(medicines);
   }, []);
 
@@ -55,7 +55,7 @@ function Addmedicine() {
     if (company) {
       const filtered = getMedicinesByBrand(company);
       setFilteredMedicines(filtered);
-      setMedicinesList(filtered);
+      // setMedicinesList(filtered);
       // Reset medicine name when brand changes
       setName('');
       setBasePrice('');
@@ -64,7 +64,7 @@ function Addmedicine() {
     } else {
       const all = getAllMedicines();
       setFilteredMedicines(all);
-      setMedicinesList(all);
+      // setMedicinesList(all);
     }
   }, [company]);
 
