@@ -1,5 +1,5 @@
 import { Outlet, Navigate } from "react-router-dom";
-import { useContext, useEffect } from "react";
+import { useContext } from "react";
 import { UserContext } from '../../Context/UserContext';
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';

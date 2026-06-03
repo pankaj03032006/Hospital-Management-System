@@ -1,7 +1,7 @@
-import { styled, useTheme } from '@mui/material/styles';
+import { styled } from '@mui/material/styles'; // Removed unused useTheme
 import MuiDrawer from '@mui/material/Drawer';
 import List from '@mui/material/List';
-import CssBaseline from '@mui/material/CssBaseline';
+// Removed unused CssBaseline
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
@@ -11,12 +11,12 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+// Removed unused DashboardOutlinedIcon
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import AccessibleForwardIcon from '@mui/icons-material/AccessibleForward';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import AccountBoxIcon from '@mui/icons-material/AccountBox';
-import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt';
+// Removed unused PersonAddAltIcon
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import React, { useContext, useState } from 'react';
 import { UserContext } from '../../../Context/UserContext';
@@ -24,11 +24,11 @@ import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import VaccinesIcon from '@mui/icons-material/Vaccines';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import GroupIcon from '@mui/icons-material/Group';
-import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
+// Removed unused MedicalServicesIcon
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import PersonIcon from '@mui/icons-material/Person';
+// Removed unused PersonIcon
 import PeopleIcon from '@mui/icons-material/People';
-import DescriptionIcon from '@mui/icons-material/Description';
+// Removed unused DescriptionIcon
 import SettingsIcon from '@mui/icons-material/Settings';
 import HelpIcon from '@mui/icons-material/Help';
 import Tooltip from '@mui/material/Tooltip';
@@ -164,13 +164,12 @@ export default function Sidebar({ open, handleDrawerClose, handleDrawerOpen }) {
             }
         ];
 
-        // FIXED: Changed key from 'patients' to 'mypatients' and path to '/mypatients'
         const doctorOnlyItems = [
             {
-                key: 'mypatients',  // Changed from 'patients' to 'mypatients'
+                key: 'mypatients',
                 title: 'My Patients',
                 icon: <PeopleIcon />,
-                path: `${prefix}/mypatients`,  // Changed from '/patients' to '/mypatients'
+                path: `${prefix}/mypatients`,
                 roles: ['Doctor']
             },
             {

@@ -12,7 +12,7 @@ import Divider from '@mui/material/Divider';
 import axios from 'axios';
 
 export default function Settings() {
-    const { currentUser, token } = useContext(UserContext);
+    const {  token } = useContext(UserContext);
     const [profile, setProfile] = useState({
         firstName: '',
         lastName: '',

@@ -1,20 +1,15 @@
-import React, { useEffect, useState, useContext, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react'; // Removed unused useContext
 import axios from "axios";
 import ErrorDialogueBox from '../MUIDialogueBox/ErrorDialogueBox';
 import Box from '@mui/material/Box';
 import PrescriptionTable from '../MUITable/PrescriptionTable';
-import { UserContext } from '../../Context/UserContext';
+// Removed unused UserContext
 import moment from 'moment';
 
 function PrescriptionList() {
-    // const { currentUser } = useContext(UserContext);
     const params = useMemo(() => new URLSearchParams(window.location.search), []);
 
     const [prescriptions, setPrescription] = useState([]);
-    // const [patientList, setPatientList] = useState([]);
-    // const [doctorList, setDoctorList] = useState([]);
-    // const [patientSelected, setPatientSelected] = useState("");
-    // const [doctorSelected, setDoctorSelected] = useState("");
     const [loading, setLoading] = useState(false);
 
     const [errorDialogueBoxOpen, setErrorDialogueBoxOpen] = useState(false);
@@ -31,12 +26,12 @@ function PrescriptionList() {
 
     const getPatients = useCallback(async () => {
         try {
-            const response = await axios.get("https://hospital-management-system-2-dni5.onrender.com/patients", {
+            await axios.get("https://hospital-management-system-2-dni5.onrender.com/patients", {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }
             });
-            // setPatientList(response.data);
+            // Patient list data is not being used, so we don't need to store it
         } catch (error) {
             const errorMessage = error.response?.data?.message || error.message || "Failed to fetch patients";
             setErrorList([errorMessage]);
@@ -46,12 +41,12 @@ function PrescriptionList() {
 
     const getDoctors = useCallback(async () => {
         try {
-            const response = await axios.get("https://hospital-management-system-2-dni5.onrender.com/doctors", {
+            await axios.get("https://hospital-management-system-2-dni5.onrender.com/doctors", {
                 headers: {
                     authorization: `Bearer ${localStorage.getItem("token")}`
                 }
             });
-            // setDoctorList(response.data);
+            // Doctor list data is not being used, so we don't need to store it
         } catch (error) {
             const errorMessage = error.response?.data?.message || error.message || "Failed to fetch doctors";
             setErrorList([errorMessage]);
@@ -66,19 +61,17 @@ function PrescriptionList() {
         let reqObj = {};
         
         if (doctorId) {
-            // setDoctorSelected(doctorId);
             reqObj.doctorId = doctorId;
         }
 
         if (patientId) {
-            // setPatientSelected(patientId);
             reqObj.patientId = patientId;
         }
         
         setLoading(true);
         
         try {
-            let response = await axios.post(`https://hospital-management-system-2-dni5.onrender.com/prescriptions`, reqObj,
+            const response = await axios.post(`https://hospital-management-system-2-dni5.onrender.com/prescriptions`, reqObj,
                 {
                     headers: {
                         authorization: `Bearer ${localStorage.getItem("token")}`

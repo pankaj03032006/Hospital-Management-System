@@ -4,11 +4,11 @@ import Toolbar from '@mui/material/Toolbar';
 import IconButton from '@mui/material/IconButton';
 import MenuIcon from '@mui/icons-material/Menu';
 import Typography from '@mui/material/Typography';
-import { styled, useTheme } from '@mui/material/styles';
-import { useNavigate, useLocation } from "react-router-dom";
+import { styled } from '@mui/material/styles'; // Removed unused useTheme
+import { useNavigate } from "react-router-dom"; // Removed unused useLocation
 import React, { useContext, useState } from 'react';
 import { UserContext } from '../../../Context/UserContext';
-import AccountCircle from '@mui/icons-material/AccountCircle';
+// Removed unused AccountCircle
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
@@ -47,11 +47,12 @@ const AppBar = styled(MuiAppBar, {
 
 const Header = ({ open, handleDrawerOpen, headerTitle }) => {
   const navigate = useNavigate();
-  const location = useLocation();
+  // Removed unused location
   const { isLoggedIn, currentUser, signOutUser } = useContext(UserContext);
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
-  const [notifications, setNotifications] = useState([
+  // Removed unused setNotifications - notifications state is read-only
+  const [notifications] = useState([
     { id: 1, text: "New appointment booking", time: "5 min ago", read: false },
     { id: 2, text: "Patient feedback received", time: "1 hour ago", read: false },
     { id: 3, text: "System update completed", time: "2 hours ago", read: true },

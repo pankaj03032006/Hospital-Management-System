@@ -1,6 +1,6 @@
 // src/components/Doctor/MyPatients.js
-import React, { useState, useEffect, useContext } from 'react';
-import { UserContext } from '../../Context/UserContext';
+import React, { useState, useEffect } from 'react'; // Removed unused useContext
+// Removed unused UserContext import
 import axios from 'axios';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -13,7 +13,6 @@ import Button from '@mui/material/Button';
 import { NavLink } from 'react-router-dom';
 
 export default function MyPatients() {
-    const { currentUser, token } = useContext(UserContext);
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');

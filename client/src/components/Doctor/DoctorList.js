@@ -4,7 +4,7 @@ import axios from "axios";
 import ErrorDialogueBox from '../MUIDialogueBox/ErrorDialogueBox';
 import Box from '@mui/material/Box';
 import DoctorTable from '../MUITable/DoctorTable';
-import { CircularProgress, TextField, InputAdornment, Menu, MenuItem, IconButton } from '@mui/material';
+import { CircularProgress, TextField, InputAdornment, Menu, MenuItem } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import RefreshIcon from '@mui/icons-material/Refresh';

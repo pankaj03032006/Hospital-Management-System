@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useMemo, useCallback } from "react";
+import React, { useContext, useState, useEffect, useMemo } from "react"; // Removed unused useCallback
 import { UserContext } from '../../Context/UserContext';
 import Button from '@mui/material/Button';
 import AddIcon from '@mui/icons-material/Add';
@@ -29,7 +29,7 @@ function PrescriptionForm(props) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [itemToDelete, setItemToDelete] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [fetchingPatient, setFetchingPatient] = useState(false);
+    // Removed unused fetchingPatient and setFetchingPatient
 
     // Get patient name - prioritize direct props
     const selectedPatientName = useMemo(() => {
@@ -62,30 +62,8 @@ function PrescriptionForm(props) {
         getMedicines();
     }, []);
 
-    // Load existing prescription data if editing
-    useEffect(() => {
-        if (props.existingPrescription && medicines.length > 0) {
-            loadExistingPrescription();
-            setIsEditing(true);
-        }
-    }, [props.existingPrescription, medicines]);
-
-    const getMedicines = async () => {
-        try {
-            const response = await axios.get(`${process.env.REACT_APP_API_URL || 'https://hospital-management-system-2-dni5.onrender.com'}/medicines`, {
-                headers: {
-                    authorization: `Bearer ${localStorage.getItem("token")}`
-                }
-            });
-            setMedicines(response.data);
-        } catch (error) {
-            console.error("Error fetching medicines:", error);
-            setErrorMessage(error.response?.data?.message || "Failed to load medicines list");
-            setErrorSnackbar(true);
-        }
-    };
-
-    const loadExistingPrescription = () => {
+    // Load existing prescription data if editing - Fixed dependency
+    const loadExistingPrescription = React.useCallback(() => {
         if (props.existingPrescription && medicines.length > 0) {
             const existingMedicines = props.existingPrescription.medicines || [];
             const loadedItems = existingMedicines.map((med, index) => ({
@@ -99,6 +77,28 @@ function PrescriptionForm(props) {
             }));
             setMedicineItems(loadedItems);
             setRemarks(props.existingPrescription.remarks || '');
+        }
+    }, [props.existingPrescription, medicines]);
+
+    useEffect(() => {
+        if (props.existingPrescription && medicines.length > 0) {
+            loadExistingPrescription();
+            setIsEditing(true);
+        }
+    }, [props.existingPrescription, medicines, loadExistingPrescription]); // Added loadExistingPrescription to dependencies
+
+    const getMedicines = async () => {
+        try {
+            const response = await axios.get(`${process.env.REACT_APP_API_URL || 'https://hospital-management-system-2-dni5.onrender.com'}/medicines`, {
+                headers: {
+                    authorization: `Bearer ${localStorage.getItem("token")}`
+                }
+            });
+            setMedicines(response.data);
+        } catch (error) {
+            console.error("Error fetching medicines:", error);
+            setErrorMessage(error.response?.data?.message || "Failed to load medicines list");
+            setErrorSnackbar(true);
         }
     };
 

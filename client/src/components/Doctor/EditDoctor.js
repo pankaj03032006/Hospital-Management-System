@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { NavLink, useNavigate, useParams } from "react-router-dom";
+import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate, useParams } from "react-router-dom"; // Removed unused NavLink
 import ErrorDialogueBox from '../MUIDialogueBox/ErrorDialogueBox';
 import axios from "axios";
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
-import { TextField, MenuItem, Select, FormControl, InputLabel, FormHelperText } from '@mui/material';
+// Removed unused Material-UI imports: TextField, MenuItem, Select, FormControl, InputLabel, FormHelperText
 
 function Editdoctor() {
   const navigate = useNavigate();
@@ -77,8 +77,8 @@ function Editdoctor() {
     return phone ? re.test(phone) : true;
   };
 
-  // Fetch doctor data
-  const getdoctorById = async () => {
+  // Fetch doctor data - wrapped in useCallback
+  const getdoctorById = useCallback(async () => {
     setFetchingData(true);
     try {
       const response = await axios.get(`https://hospital-management-system-2-dni5.onrender.com/doctors/${id}`, {
@@ -106,7 +106,7 @@ function Editdoctor() {
     } finally {
       setFetchingData(false);
     }
-  };
+  }, [id, navigate]); // Added dependencies
 
   // Update doctor
   const updatedoctor = async (e) => {
@@ -212,9 +212,12 @@ function Editdoctor() {
     }
   }, [phone]);
 
+  // Fixed useEffect with correct dependency
   useEffect(() => {
-    getdoctorById();
-  }, [id]);
+    if (id) {
+      getdoctorById();
+    }
+  }, [id, getdoctorById]); // Added getdoctorById to dependencies
 
   if (fetchingData) {
     return (

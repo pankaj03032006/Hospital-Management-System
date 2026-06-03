@@ -11,11 +11,10 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import PrescriptionForm from '../Forms/PrescriptionForm';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import CircularProgress from '@mui/material/CircularProgress';
 
 function DoctorAppointment() {
     const { currentUser } = useContext(UserContext);
-    const navigate = useNavigate();
     const doctorId = currentUser?.doctorId || currentUser?._id;
     
     const [errorDialogueBoxOpen, setErrorDialogueBoxOpen] = useState(false);
@@ -197,10 +196,30 @@ function DoctorAppointment() {
                                 setOpenPrescriptionDialog(false);
                                 getBookedSlots(); // Refresh appointments
                             }}
+                            prescriptionLoading={prescriptionLoading}
                         />
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Optional: Show loading indicator while saving prescription */}
+            {prescriptionLoading && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 9999
+                }}>
+                    <CircularProgress />
+                    <span style={{ color: 'white', marginLeft: '10px' }}>Saving prescription...</span>
+                </div>
+            )}
 
             <ErrorDialogueBox
                 open={errorDialogueBoxOpen}
