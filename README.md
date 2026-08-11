@@ -31,9 +31,7 @@
 - [API Structure](#-api-structure)
 - [Getting Started](#-getting-started)
 - [Environment Variables](#-environment-variables)
-- [Running the Application](#-running-the-application)
-- [Application Workflow](#-application-workflow)
-- [Security](#-security)
+- 
 - [Future Improvements](#-future-improvements)
 - [Contributing](#-contributing)
 
