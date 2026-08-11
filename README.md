@@ -31,10 +31,8 @@
 - [API Structure](#-api-structure)
 - [Getting Started](#-getting-started)
 - [Environment Variables](#-environment-variables)
-- 
 - [Future Improvements](#-future-improvements)
 - [Contributing](#-contributing)
-
 
 ---
 
