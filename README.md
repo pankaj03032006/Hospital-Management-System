@@ -36,8 +36,7 @@
 - [Security](#-security)
 - [Future Improvements](#-future-improvements)
 - [Contributing](#-contributing)
-- [Author](#-author)
-- [License](#-license)
+
 
 ---
 
