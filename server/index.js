@@ -13,7 +13,15 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // MongoDB Connection --------------------
-mongoose.set('strictQuery', true);
+mongoose.set("strictQuery", true);
+
+console.log("MONGO_URI exists:", !!process.env.MONGO_URI);
+console.log(
+    "MongoDB host:",
+    process.env.MONGO_URI
+        ? process.env.MONGO_URI.split("@")[1]?.split("/")[0]
+        : "NOT SET"
+);
 
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
@@ -21,7 +29,6 @@ mongoose.connect(process.env.MONGO_URI, {
 })
 .then(() => console.log("MongoDB Connected"))
 .catch(err => console.log("DB Error:", err));
-
 // Import User Model
 const User = require("./models/user");
 
